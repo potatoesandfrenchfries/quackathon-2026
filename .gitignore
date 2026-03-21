@@ -1,27 +1,33 @@
-# Environment files — NEVER commit these
+# Environment
 .env
-.env.local
-.env.production
-backend/.env
-frontend/.env.local
+.env.*
+!.env.example
 
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 .venv/
 venv/
 *.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Node
 node_modules/
-frontend/.next/
-frontend/out/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
 
 # OS
 .DS_Store
 Thumbs.db
 
 # IDE
-.vscode/settings.json
+.vscode/
 .idea/
+*.swp
