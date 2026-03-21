@@ -1,0 +1,13 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+supabase==2.10.0
+python-jose[cryptography]==3.3.0
+pydantic-settings==2.7.0
+pydantic==2.10.4
+httpx==0.28.1
+python-multipart==0.0.20
+anthropic==0.42.0
+pinecone-client==5.0.1
+redis==5.2.1
+apscheduler==3.10.4
+python-dotenv==1.0.1
