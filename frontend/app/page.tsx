@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 text-center bg-gray-950">
       <div className="max-w-2xl mx-auto space-y-8">
         <div className="space-y-2">
           <div className="text-6xl font-bold tracking-tight">
@@ -21,16 +21,10 @@ export default function LandingPage() {
 
         <div className="flex gap-4 justify-center">
           <Link
-            href="/login"
+            href="/dashboard"
             className="px-8 py-3 bg-amber-400 text-gray-950 font-semibold rounded-lg hover:bg-amber-300 transition-colors"
           >
             Get Started
-          </Link>
-          <Link
-            href="/feed"
-            className="px-8 py-3 border border-gray-700 text-gray-300 font-semibold rounded-lg hover:border-gray-500 transition-colors"
-          >
-            Browse Questions
           </Link>
         </div>
 
