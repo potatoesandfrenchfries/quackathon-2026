@@ -17,6 +17,7 @@ import {
   fetchForumPost,
   createAnswer,
   toForumPostDetailData,
+  type ForumAnswerInput,
   type ForumPostDetailData,
 } from "@/lib/supabase/posts";
 import { CredibilityBadge, tierFromScore } from "@/components/CredibilityBadge";
@@ -35,7 +36,7 @@ const TOPIC_COLORS: Record<Topic, string> = {
 
 // ─── Demo data ────────────────────────────────────────────────────────────────
 
-type DemoPostRaw = Post & { answers_enriched: AnswerEnriched[] };
+type DemoPostRaw = Post & { answers_enriched: ForumAnswerInput[] };
 
 const DEMO_POSTS_DATA: Record<string, DemoPostRaw> = {
   "demo-1": {
