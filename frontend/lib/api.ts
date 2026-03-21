@@ -115,8 +115,9 @@ export const api = {
   // ----------------------------------------------------------------
   ai: {
     getResponse: (postId: string) =>
-      apiFetch<AIResponse | null>(`/posts/${postId}`).then(
-        (p: any) => p.ai_responses?.response_json ?? null
+      apiFetch<{ ai_responses?: { response_json: AIResponse } | null }>(`/posts/${postId}`).then(
+        (p: { ai_responses?: { response_json: AIResponse } | null }) =>
+          p.ai_responses?.response_json ?? null
       ),
   },
 };

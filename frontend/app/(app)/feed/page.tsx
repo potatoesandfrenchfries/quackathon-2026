@@ -12,7 +12,14 @@ import {
   type ForumPostCardData,
 } from "@/lib/supabase/posts";
 import { cn, formatRelativeTime } from "@/lib/utils";
-import type { Post, Topic } from "@/types/database";
+import type { AIResponse, Post, Topic } from "@/types/database";
+
+const DEMO_AI_PLACEHOLDER: AIResponse = {
+  summary: "",
+  action: "",
+  confidence: 0,
+  disclaimer: "",
+};
 
 // ─── topic config ──────────────────────────────────────────────────────────────
 
@@ -62,7 +69,7 @@ const DEMO_POSTS: Post[] = [
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
     updated_at: new Date().toISOString(),
     profiles: { username: "alex_uni", display_name: "Alex" },
-    ai_responses: { response_json: {} as any },
+    ai_responses: { response_json: DEMO_AI_PLACEHOLDER },
   },
   {
     id: "demo-2",
@@ -90,7 +97,7 @@ const DEMO_POSTS: Post[] = [
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     updated_at: new Date().toISOString(),
     profiles: { username: "invest_newbie", display_name: "Jamie" },
-    ai_responses: { response_json: {} as any },
+    ai_responses: { response_json: DEMO_AI_PLACEHOLDER },
   },
   {
     id: "demo-5",
@@ -104,7 +111,7 @@ const DEMO_POSTS: Post[] = [
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(),
     updated_at: new Date().toISOString(),
     profiles: { username: "global_student", display_name: "Rohan" },
-    ai_responses: { response_json: {} as any },
+    ai_responses: { response_json: DEMO_AI_PLACEHOLDER },
   },
   {
     id: "demo-6",
@@ -118,7 +125,7 @@ const DEMO_POSTS: Post[] = [
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
     updated_at: new Date().toISOString(),
     profiles: { username: "grad_2025", display_name: "Emma" },
-    ai_responses: { response_json: {} as any },
+    ai_responses: { response_json: DEMO_AI_PLACEHOLDER },
   },
 ];
 

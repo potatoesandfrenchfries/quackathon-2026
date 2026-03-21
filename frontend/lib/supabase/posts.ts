@@ -24,6 +24,17 @@ export interface ForumPostDetailData extends ForumPostCardData {
   answers: AnswerEnriched[];
 }
 
+export type ForumAnswerInput = Omit<
+  AnswerEnriched,
+  "fact_check_confidence" | "fact_check_evidence" | "updated_at"
+> &
+  Partial<
+    Pick<
+      AnswerEnriched,
+      "fact_check_confidence" | "fact_check_evidence" | "updated_at"
+    >
+  >;
+
 // Use untyped client here — the Database generic's Insert types include
 // joined fields (profiles, ai_responses) which confuse supabase-js insert().
 function db() {
@@ -58,13 +69,20 @@ export function toForumPostCardData(post: Post): ForumPostCardData {
 }
 
 export function toForumPostDetailData(
-  post: Post & { answers_enriched: AnswerEnriched[] }
+  post: Post & { answers_enriched: ForumAnswerInput[] }
 ): ForumPostDetailData {
+  const answers: AnswerEnriched[] = (post.answers_enriched ?? []).map((answer) => ({
+    ...answer,
+    fact_check_confidence: answer.fact_check_confidence ?? null,
+    fact_check_evidence: answer.fact_check_evidence ?? null,
+    updated_at: answer.updated_at ?? answer.created_at,
+  }));
+
   return {
     ...toForumPostCardData(post),
     acceptedAnswerId: post.accepted_answer_id,
     aiResponse: post.ai_responses?.response_json ?? null,
-    answers: post.answers_enriched ?? [],
+    answers,
   };
 }
 

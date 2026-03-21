@@ -27,7 +27,9 @@ export default function LeaderboardPage() {
   useEffect(() => {
     api.credibility
       .leaderboard()
-      .then((data: any) => setEntries(Array.isArray(data) ? data : []))
+      .then((data: unknown) =>
+        setEntries(Array.isArray(data) ? (data as LeaderboardEntry[]) : [])
+      )
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);

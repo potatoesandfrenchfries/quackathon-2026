@@ -135,9 +135,14 @@ Please search the web for relevant current UK financial information on this topi
   const client = new Anthropic({ apiKey: anthropicKey });
 
   let parsed: Record<string, unknown>;
+  const betaMessages = client.beta.messages as unknown as {
+    create: (args: Record<string, unknown>) => Promise<{
+      content: Array<{ type: string; text?: string }>;
+    }>;
+  };
 
   try {
-    const response = await (client.beta.messages as any).create({
+    const response = await betaMessages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 2048,
       betas: ["web-search-2025-03-05"],

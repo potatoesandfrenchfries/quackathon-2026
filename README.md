@@ -4,6 +4,8 @@
 
 A student financial platform where **credibility is currency**. Ask questions, share knowledge, earn trust — and the AI already knows who to believe.
 
+**Live:** https://buddy-sand-six.vercel.app
+
 ---
 
 ## Quick Start
@@ -65,6 +67,117 @@ npm run dev
 ```
 
 App available at: http://localhost:3000
+
+---
+
+## Containerization (Docker)
+
+This project now includes a container-first setup:
+
+- `backend/Dockerfile` for FastAPI (`uvicorn` on port `8000`)
+- `frontend/Dockerfile` multi-stage build for Next.js (`next start` on port `3000`)
+- `docker-compose.yml` to run both services together
+- `.dockerignore` files for frontend and backend
+
+### Prerequisites
+
+1. Copy env templates if you haven't already:
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
+```
+
+2. Fill required env values in:
+
+- `backend/.env`
+- `frontend/.env.local`
+
+### Run with Docker Compose
+
+From repository root:
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+
+### Stop services
+
+```bash
+docker compose down
+```
+
+### Production-friendly approach
+
+1. Keep one Docker image per service (frontend/backend).
+2. Build once in CI and tag images with commit SHA.
+3. Push images to a container registry.
+4. Deploy by updating image tag in your target environment (Render/Fly/Kubernetes/App Service/etc).
+5. Inject runtime secrets from platform secret manager (never bake secrets into images).
+
+---
+
+## CI/CD (GitHub Actions)
+
+This repository now includes two workflows:
+
+- `.github/workflows/ci.yml`
+    - Runs on pull requests and pushes to `main`
+    - Frontend: `npm ci`, `npm run lint`, `npm run build`
+    - Backend: dependency install, syntax compile check, `pip check`
+
+- `.github/workflows/cd.yml`
+    - Runs on pushes to `main` and manual dispatch
+    - Executes a production quality gate (frontend build + backend syntax check)
+    - Triggers deployment hooks if secrets are configured
+
+### Required GitHub Secrets (for CD deploy triggers)
+
+- `FRONTEND_DEPLOY_HOOK_URL` (optional)
+- `BACKEND_DEPLOY_HOOK_URL` (optional)
+
+If these secrets are not set, deploy jobs will be skipped safely, while CI still validates code quality.
+
+---
+
+## Deployments
+
+| Service | Platform | URL |
+|---|---|---|
+| Frontend (Next.js) | Vercel | https://buddy-sand-six.vercel.app |
+| Backend (FastAPI) | Render | connect via `render.yaml` (see below) |
+
+### Vercel — Frontend
+
+`vercel.json` at the repo root explicitly builds the `frontend/` Next.js app in this monorepo. Set these in **Vercel Dashboard → Project → Settings → Environment Variables**:
+
+| Variable | Notes |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://ewyenqtrkdzgckrncwvb.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable key — safe to expose |
+| `ANTHROPIC_API_KEY` | **Secret** — powers `/api/advisor` serverless route |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Secret** — lets advisor cache responses to DB |
+| `NEXT_PUBLIC_API_URL` | URL of your Render backend once deployed (required for backend-powered pages) |
+
+### Render — Backend
+
+> **Why not Netlify?** Netlify runs serverless functions only. FastAPI with uvicorn is a persistent server and cannot run on Netlify.
+
+`render.yaml` at the repo root defines the backend web service. To deploy:
+
+1. Go to [render.com](https://render.com) → New → Blueprint
+2. Connect this repo — Render will detect `render.yaml` automatically
+3. Fill in the secret env vars marked `sync: false` in the Render dashboard:
+   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`
+   - `ANTHROPIC_API_KEY`
+   - `PINECONE_API_KEY` (optional — RAG is currently stubbed)
+   - `REDIS_URL` (optional — from Upstash free tier)
+4. Once deployed, paste the Render URL into Vercel's `NEXT_PUBLIC_API_URL` env var
 
 ---
 
