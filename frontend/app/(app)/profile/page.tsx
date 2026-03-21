@@ -5,7 +5,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { BookOpen, TrendingUp, ArrowUpRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { CredibilityBadge, TIER_CONFIG, tierFromScore } from "@/components/CredibilityBadge";
-import { cn } from "@/lib/utils";
 import type { CredibilitySnapshot, Topic } from "@/types/database";
 
 const TOPIC_LABELS: Record<Topic, string> = {

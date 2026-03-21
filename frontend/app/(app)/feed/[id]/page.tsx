@@ -21,7 +21,7 @@ import {
 } from "@/lib/supabase/posts";
 import { CredibilityBadge, tierFromScore } from "@/components/CredibilityBadge";
 import { cn, formatRelativeTime } from "@/lib/utils";
-import type { AnswerEnriched, AIResponse, Topic } from "@/types/database";
+import type { AnswerEnriched, AIResponse, Post, Topic } from "@/types/database";
 
 const TOPIC_COLORS: Record<Topic, string> = {
   rent:      "bg-blue-400/10 text-blue-400 border-blue-400/30",
@@ -35,8 +35,9 @@ const TOPIC_COLORS: Record<Topic, string> = {
 
 // ─── Demo data ────────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const DEMO_POSTS_DATA: Record<string, any> = {
+type DemoPostRaw = Post & { answers_enriched: AnswerEnriched[] };
+
+const DEMO_POSTS_DATA: Record<string, DemoPostRaw> = {
   "demo-1": {
     id: "demo-1", author_id: "demo",
     title: "How much should I realistically budget for groceries each week as a student in London?",
@@ -172,9 +173,9 @@ function AIConsensusCard({ ai, comments }: { ai: AIResponse; comments: AnswerEnr
                   {c.author_display_name || `@${c.author_username}`}
                 </span>
                 <span className="text-[10px] text-amber-400/70 font-mono">{c.author_total_cred} pts</span>
-                {(c as any).stake_amount > 0 && (
+                {c.stake_amount > 0 && (
                   <span className="text-[9px] text-amber-500/50 font-mono">
-                    · {(c as any).stake_amount} wagered
+                    · {c.stake_amount} wagered
                   </span>
                 )}
               </div>
@@ -270,10 +271,10 @@ function CommentCard({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {(comment as any).stake_amount > 0 && (
+          {comment.stake_amount > 0 && (
             <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-lg border border-amber-400/30 bg-amber-400/10 text-amber-400">
               <Coins className="h-3 w-3" />
-              {(comment as any).stake_amount} wagered
+              {comment.stake_amount} wagered
             </span>
           )}
           <span className="text-xs text-gray-600">{formatRelativeTime(comment.created_at)}</span>
@@ -384,8 +385,8 @@ export default function PostDetailPage() {
       setNewComment("");
       setStakeAmount(0);
       setShowStake(false);
-    } catch (e: any) {
-      setSubmitError(e.message);
+    } catch (e: unknown) {
+      setSubmitError(e instanceof Error ? e.message : "Failed to post opinion");
     } finally {
       setSubmitting(false);
     }

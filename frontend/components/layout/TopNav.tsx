@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, PenLine, Trophy, User, Users, Search, Bell } from "lucide-react";
+import { LayoutGrid, PenLine, Trophy, Users, Search, Bell } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Dashboard",  href: "/dashboard",  icon: LayoutGrid },

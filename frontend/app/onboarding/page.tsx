@@ -75,7 +75,7 @@ export default function OnboardingPage() {
           <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-bold text-white">Welcome to Buddy</h2>
-              <p className="text-gray-400 mt-1">Let's set up your profile</p>
+              <p className="text-gray-400 mt-1">Let&apos;s set up your profile</p>
             </div>
             <div className="space-y-4">
               <div>

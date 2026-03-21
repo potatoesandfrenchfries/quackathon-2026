@@ -40,8 +40,8 @@ function AskPageContent() {
         topic: form.topic as Topic,
       });
       router.push(`/feed/${post.id}`);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to create post");
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,7 @@ function AskPageContent() {
         <p className="font-mono text-[10px] uppercase tracking-widest text-gray-500">Community</p>
         <h1 className="mt-1 text-3xl font-bold text-gray-100">Ask a Question</h1>
         <p className="mt-1 text-gray-400">
-          The more detail you provide, the better answers you'll receive.
+          The more detail you provide, the better answers you&apos;ll receive.
         </p>
       </div>
 
@@ -142,7 +142,7 @@ function AskPageContent() {
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
           <p className="text-xs text-gray-500">
             <span className="text-amber-400 font-semibold">Tip:</span> Answers are weighted by the
-            author's credibility score in your chosen topic. High-credibility contributors earn
+            author&apos;s credibility score in your chosen topic. High-credibility contributors earn
             points for accepted answers.
           </p>
         </div>

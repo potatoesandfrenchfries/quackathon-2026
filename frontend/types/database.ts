@@ -122,7 +122,7 @@ export type Database = {
       user_topic_credibility: { Row: { user_id: string; topic: Topic; score: number } };
       answers_enriched: { Row: AnswerEnriched };
     };
-    Functions: {};
-    Enums: {};
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
   };
 };

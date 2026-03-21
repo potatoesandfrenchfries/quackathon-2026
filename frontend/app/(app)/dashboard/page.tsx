@@ -1,6 +1,6 @@
 "use client";
 import {
-  TrendingUp, TrendingDown, Flame, Zap, Star,
+  TrendingUp, Flame, Zap, Star,
   ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import {
@@ -52,8 +52,6 @@ export default function DashboardPage() {
 
   const recent = transactions.slice(0, 5);
   const { level, xp, xpToNext, streak, totalXpEarned } = user.gamification;
-  const xpPct = Math.round((xp / xpToNext) * 100);
-
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}

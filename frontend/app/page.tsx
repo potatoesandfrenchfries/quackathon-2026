@@ -9,7 +9,7 @@ export default function LandingPage() {
             <span className="text-white">Buddy</span>
           </div>
           <p className="text-gray-400 text-xl">
-            We didn't change money. We changed trust.
+            We didn&apos;t change money. We changed trust.
           </p>
         </div>
 

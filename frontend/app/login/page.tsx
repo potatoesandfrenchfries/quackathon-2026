@@ -74,7 +74,7 @@ export default function LoginPage() {
               {loading ? "Sending…" : "Send Magic Link →"}
             </button>
             <p className="text-center text-xs text-gray-600">
-              No password needed. We'll email you a sign-in link.
+              No password needed. We&apos;ll email you a sign-in link.
             </p>
           </form>
         )}
