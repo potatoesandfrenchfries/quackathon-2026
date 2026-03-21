@@ -14,6 +14,7 @@ from typing import Optional
 import anthropic
 
 from core.config import settings
+from services.rag import rag
 
 SYSTEM_PROMPT = """You are Buddy, a peer financial guide for students in the UK.
 You are NOT a regulated financial advisor. Always frame your guidance as educational.
@@ -74,8 +75,13 @@ async def run_advisor(post_id: str, db) -> Optional[dict]:
     user_snapshot = post.get("profiles", {}).get("financial_snapshot", {})
     answers_context = _format_answers(answers)
 
-    # 4. RAG (stub for hackathon — replace with Pinecone call)
-    docs_context = _stub_rag(post["topic"])
+    # 4. RAG — retrieve UK financial research + sentiment analysis
+    query = f"{post['title']} {post['body']}"
+    if rag.available():
+        annotated = rag.get_context(query=query, topic=post["topic"])
+        docs_context = rag.format_for_advisor(annotated)
+    else:
+        docs_context = _stub_rag(post["topic"])
 
     # 5. Call Claude
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)

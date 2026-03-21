@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     # Anthropic
     anthropic_api_key: str
 
-    # Pinecone
-    pinecone_api_key: str
+    # Pinecone (optional — falls back to stub RAG if not set)
+    pinecone_api_key: str = ""
     pinecone_index_name: str = "buddy-finance"
 
     # Redis (Upstash)

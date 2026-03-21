@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
-from routers import auth, posts, answers, votes, credibility, tools
+from routers import auth, posts, answers, votes, credibility, tools, rag
 
 app = FastAPI(
     title="Buddy API",
@@ -24,6 +24,7 @@ app.include_router(answers.router)
 app.include_router(votes.router)
 app.include_router(credibility.router)
 app.include_router(tools.router)
+app.include_router(rag.router)
 
 
 @app.get("/health")
