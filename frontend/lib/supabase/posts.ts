@@ -1,6 +1,29 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { Post, AnswerEnriched, Topic } from "@/types/database";
 
+export interface ForumAuthor {
+  username: string;
+  displayName: string;
+}
+
+export interface ForumPostCardData {
+  id: string;
+  title: string;
+  body: string;
+  topic: Topic;
+  resolved: boolean;
+  viewCount: number;
+  createdAt: string;
+  hasAiResponse: boolean;
+  author: ForumAuthor;
+}
+
+export interface ForumPostDetailData extends ForumPostCardData {
+  acceptedAnswerId: string | null;
+  aiResponse: unknown | null;
+  answers: AnswerEnriched[];
+}
+
 // Use untyped client here — the Database generic's Insert types include
 // joined fields (profiles, ai_responses) which confuse supabase-js insert().
 function db() {
@@ -8,6 +31,41 @@ function db() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+}
+
+function toForumAuthor(post: Post): ForumAuthor {
+  const username = post.profiles?.username?.trim() || "anonymous";
+  const displayName = post.profiles?.display_name?.trim() || username;
+
+  return {
+    username,
+    displayName,
+  };
+}
+
+export function toForumPostCardData(post: Post): ForumPostCardData {
+  return {
+    id: post.id,
+    title: post.title,
+    body: post.body,
+    topic: post.topic,
+    resolved: post.resolved,
+    viewCount: post.view_count ?? 0,
+    createdAt: post.created_at,
+    hasAiResponse: Boolean(post.ai_responses?.response_json),
+    author: toForumAuthor(post),
+  };
+}
+
+export function toForumPostDetailData(
+  post: Post & { answers_enriched: AnswerEnriched[] }
+): ForumPostDetailData {
+  return {
+    ...toForumPostCardData(post),
+    acceptedAnswerId: post.accepted_answer_id,
+    aiResponse: post.ai_responses?.response_json ?? null,
+    answers: post.answers_enriched ?? [],
+  };
 }
 
 export async function fetchPosts(topic?: Topic): Promise<Post[]> {
@@ -25,6 +83,11 @@ export async function fetchPosts(topic?: Topic): Promise<Post[]> {
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as Post[];
+}
+
+export async function fetchForumPosts(topic?: Topic): Promise<ForumPostCardData[]> {
+  const posts = await fetchPosts(topic);
+  return posts.map(toForumPostCardData);
 }
 
 export async function fetchPost(
@@ -50,6 +113,11 @@ export async function fetchPost(
     ...(post as unknown as Post),
     answers_enriched: (answers ?? []) as unknown as AnswerEnriched[],
   };
+}
+
+export async function fetchForumPost(postId: string): Promise<ForumPostDetailData> {
+  const post = await fetchPost(postId);
+  return toForumPostDetailData(post);
 }
 
 export async function createPost(payload: {

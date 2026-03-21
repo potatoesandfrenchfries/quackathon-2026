@@ -13,10 +13,15 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { fetchPost, createAnswer } from "@/lib/supabase/posts";
+import {
+  fetchForumPost,
+  createAnswer,
+  toForumPostDetailData,
+  type ForumPostDetailData,
+} from "@/lib/supabase/posts";
 import { CredibilityBadge, tierFromScore } from "@/components/CredibilityBadge";
 import { cn, formatRelativeTime } from "@/lib/utils";
-import type { Post, AnswerEnriched, AIResponse, Topic } from "@/types/database";
+import type { AnswerEnriched, AIResponse, Topic } from "@/types/database";
 
 const TOPIC_COLORS: Record<Topic, string> = {
   rent:      "bg-blue-400/10 text-blue-400 border-blue-400/30",
@@ -305,7 +310,7 @@ export default function PostDetailPage() {
   const postId  = params.id as string;
   const isDemo  = postId.startsWith("demo-");
 
-  const [post, setPost]                   = useState<(Post & { answers_enriched: AnswerEnriched[] }) | null>(null);
+  const [post, setPost]                   = useState<ForumPostDetailData | null>(null);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
   const [advisorResponse, setAdvisorResponse] = useState<AIResponse | null>(null);
@@ -323,7 +328,7 @@ export default function PostDetailPage() {
     if (isDemo) {
       const demoData = DEMO_POSTS_DATA[postId];
       if (demoData) {
-        setPost(demoData);
+        setPost(toForumPostDetailData(demoData));
         setError(null);
         setLoading(false);
         // Simulate AI loading for demo
@@ -341,12 +346,12 @@ export default function PostDetailPage() {
       };
     }
 
-    fetchPost(postId)
+    fetchForumPost(postId)
       .then((postData) => {
         setPost(postData);
         setError(null);
         setLoading(false);
-        const cached = postData.ai_responses?.response_json ?? null;
+        const cached = postData.aiResponse;
         if (cached) {
           setAdvisorResponse(cached as unknown as AIResponse);
         } else {
@@ -374,7 +379,7 @@ export default function PostDetailPage() {
     setSubmitError(null);
     try {
       await createAnswer(postId, newComment.trim());
-      const updated = await fetchPost(postId);
+      const updated = await fetchForumPost(postId);
       setPost(updated);
       setNewComment("");
       setStakeAmount(0);
@@ -411,8 +416,8 @@ export default function PostDetailPage() {
     );
   }
 
-  const comments    = post.answers_enriched ?? [];
-  const authorName  = post.profiles?.display_name || post.profiles?.username || "Anonymous";
+  const comments    = post.answers ?? [];
+  const authorName  = post.author.displayName;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -453,11 +458,11 @@ export default function PostDetailPage() {
           <div className="flex items-center gap-4 text-xs text-gray-600">
             <span className="flex items-center gap-1">
               <Eye className="h-3 w-3" />
-              {post.view_count}
+              {post.viewCount}
             </span>
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {formatRelativeTime(post.created_at)}
+              {formatRelativeTime(post.createdAt)}
             </span>
           </div>
         </div>
@@ -490,7 +495,7 @@ export default function PostDetailPage() {
           <CommentCard
             key={c.id}
             comment={c}
-            isAccepted={c.id === post.accepted_answer_id}
+            isAccepted={c.id === post.acceptedAnswerId}
             postTopic={post.topic}
           />
         ))}

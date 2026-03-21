@@ -6,7 +6,11 @@ import {
   ShoppingCart, Globe, CreditCard, Plus, Clock, Eye,
   ChevronUp, ArrowRight,
 } from "lucide-react";
-import { fetchPosts } from "@/lib/supabase/posts";
+import {
+  fetchForumPosts,
+  toForumPostCardData,
+  type ForumPostCardData,
+} from "@/lib/supabase/posts";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type { Post, Topic } from "@/types/database";
 
@@ -137,9 +141,9 @@ const QUICK = [
 
 // ─── post card ─────────────────────────────────────────────────────────────────
 
-function PostCard({ post }: { post: Post }) {
+function PostCard({ post }: { post: ForumPostCardData }) {
   const color  = TOPIC_COLOR[post.topic];
-  const author = post.profiles?.display_name || post.profiles?.username || "Anonymous";
+  const author = post.author.displayName;
   const href = `/feed/${post.id}`;
 
   return (
@@ -156,13 +160,13 @@ function PostCard({ post }: { post: Post }) {
           </span>
           <span className="flex items-center gap-1 text-[11px] text-gray-500">
             <Clock className="h-3 w-3" />
-            {formatRelativeTime(post.created_at)}
+            {formatRelativeTime(post.createdAt)}
           </span>
           <span className="flex items-center gap-1 text-[11px] text-gray-500">
             <Eye className="h-3 w-3" />
-            {post.view_count.toLocaleString()}
+            {post.viewCount.toLocaleString()}
           </span>
-          {post.ai_responses && (
+          {post.hasAiResponse && (
             <span className="ml-auto flex items-center gap-1 text-[10px] font-mono text-amber-400/80">
               <Sparkles className="h-3 w-3" />
               AI
@@ -210,7 +214,7 @@ function PostCard({ post }: { post: Post }) {
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-gray-700 text-gray-500 hover:border-amber-400/40 hover:text-amber-400 transition-colors text-xs"
           >
             <ChevronUp className="h-3.5 w-3.5" />
-            <span className="font-mono">{post.view_count > 100 ? Math.floor(post.view_count / 10) : Math.floor(post.view_count / 5)}</span>
+            <span className="font-mono">{post.viewCount > 100 ? Math.floor(post.viewCount / 10) : Math.floor(post.viewCount / 5)}</span>
           </button>
 
           {/* Comment count */}
@@ -247,15 +251,15 @@ function PostSkeleton() {
 // ─── main page ──────────────────────────────────────────────────────────────────
 
 export default function FeedPage() {
-  const [posts, setPosts]           = useState<Post[]>([]);
+  const [posts, setPosts]           = useState<ForumPostCardData[]>([]);
   const [loading, setLoading]       = useState(true);
   const [activeTopic, setActiveTopic] = useState<Topic | "all">("all");
   const [apiOnline, setApiOnline]   = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetchPosts(activeTopic !== "all" ? activeTopic : undefined)
-      .then((data: Post[]) => {
+    fetchForumPosts(activeTopic !== "all" ? activeTopic : undefined)
+      .then((data) => {
         setPosts(data);
         setApiOnline(true);
       })
@@ -268,10 +272,11 @@ export default function FeedPage() {
 
   // Use demo posts when API is offline or returns nothing
   const displayPosts  = apiOnline && posts.length > 0 ? posts : null;
+  const normalizedDemoPosts = DEMO_POSTS.map(toForumPostCardData);
   const demoPosts     = !apiOnline || posts.length === 0
     ? (activeTopic === "all"
-        ? DEMO_POSTS
-        : DEMO_POSTS.filter((p) => p.topic === activeTopic))
+        ? normalizedDemoPosts
+        : normalizedDemoPosts.filter((p) => p.topic === activeTopic))
     : null;
   const showingDemo   = !!demoPosts;
 
@@ -394,7 +399,7 @@ export default function FeedPage() {
               { label: "Questions",   value: showingDemo ? DEMO_POSTS.length : posts.length,                          color: "#fbbf24" },
               { label: "Resolved",    value: showingDemo ? DEMO_POSTS.filter(p=>p.resolved).length : posts.filter(p=>p.resolved).length, color: "#34d399" },
               { label: "Open",        value: showingDemo ? DEMO_POSTS.filter(p=>!p.resolved).length : posts.filter(p=>!p.resolved).length, color: "#60a5fa" },
-              { label: "AI-Answered", value: showingDemo ? DEMO_POSTS.filter(p=>p.ai_responses).length : posts.filter(p=>p.ai_responses).length, color: "#a78bfa" },
+              { label: "AI-Answered", value: showingDemo ? normalizedDemoPosts.filter(p=>p.hasAiResponse).length : posts.filter(p=>p.hasAiResponse).length, color: "#a78bfa" },
             ].map((s) => (
               <div key={s.label} className="rounded-xl bg-gray-800 px-3 py-2.5">
                 <p className="text-[10px] text-gray-500">{s.label}</p>
@@ -494,7 +499,7 @@ export default function FeedPage() {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Browse by Topic</p>
           {TOPICS.filter(t => t.value !== "all").map((t) => {
             const topicPosts = showingDemo
-              ? DEMO_POSTS.filter(p => p.topic === t.value)
+              ? normalizedDemoPosts.filter(p => p.topic === t.value)
               : posts.filter(p => p.topic === t.value);
             return (
               <button
