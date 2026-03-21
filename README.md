@@ -4,6 +4,8 @@
 
 A student financial platform where **credibility is currency**. Ask questions, share knowledge, earn trust — and the AI already knows who to believe.
 
+**Live:** https://quackathon-2026.vercel.app
+
 ---
 
 ## Quick Start
@@ -65,6 +67,101 @@ npm run dev
 ```
 
 App available at: http://localhost:3000
+
+---
+
+## Containerization (Docker)
+
+This project now includes a container-first setup:
+
+- `backend/Dockerfile` for FastAPI (`uvicorn` on port `8000`)
+- `frontend/Dockerfile` multi-stage build for Next.js (`next start` on port `3000`)
+- `docker-compose.yml` to run both services together
+- `.dockerignore` files for frontend and backend
+
+### Prerequisites
+
+1. Copy env templates if you haven't already:
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
+```
+
+2. Fill required env values in:
+
+- `backend/.env`
+- `frontend/.env.local`
+
+### Run with Docker Compose
+
+From repository root:
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+
+### Stop services
+
+```bash
+docker compose down
+```
+
+### Production-friendly approach
+
+1. Keep one Docker image per service (frontend/backend).
+2. Build once in CI and tag images with commit SHA.
+3. Push images to a container registry.
+4. Deploy by updating image tag in your target environment (Render/Fly/Kubernetes/App Service/etc).
+5. Inject runtime secrets from platform secret manager (never bake secrets into images).
+
+---
+
+## CI/CD (GitHub Actions)
+
+This repository now includes two workflows:
+
+- `.github/workflows/ci.yml`
+    - Runs on pull requests and pushes to `main`
+    - Frontend: `npm ci`, `npm run lint`, `npm run build`
+    - Backend: dependency install, syntax compile check, `pip check`
+
+- `.github/workflows/cd.yml`
+    - Runs on pushes to `main` and manual dispatch
+    - Executes a production quality gate (frontend build + backend syntax check)
+    - Triggers deployment hooks if secrets are configured
+
+### Required GitHub Secrets (for CD deploy triggers)
+
+- `FRONTEND_DEPLOY_HOOK_URL` (optional)
+- `BACKEND_DEPLOY_HOOK_URL` (optional)
+
+If these secrets are not set, deploy jobs will be skipped safely, while CI still validates code quality.
+
+---
+
+## Vercel Deployment
+
+The frontend deploys to Vercel automatically on push to `main`. The `vercel.json` at the repo root tells Vercel the Next.js app lives in `frontend/`.
+
+### Required environment variables
+
+Set these in **Vercel Dashboard → Project → Settings → Environment Variables**:
+
+| Variable | Value | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://ewyenqtrkdzgckrncwvb.supabase.co` | Public — safe to expose |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_mYH-9p1vW-PHnVwXTPtmLQ__WPCv1SZ` | Public — safe to expose |
+| `ANTHROPIC_API_KEY` | from console.anthropic.com | **Secret** — powers the AI advisor |
+| `SUPABASE_SERVICE_ROLE_KEY` | from Supabase → Settings → API | **Secret** — needed to write AI responses to DB |
+| `NEXT_PUBLIC_API_URL` | *(leave empty or omit)* | Backend not deployed; frontend falls back to demo mode |
+
+> **Without `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY`** the AI advisor will return a 500 error on live posts (demo posts still work client-side). Without `NEXT_PUBLIC_SUPABASE_*` keys the build itself will succeed but auth and post fetching will fail at runtime.
 
 ---
 
