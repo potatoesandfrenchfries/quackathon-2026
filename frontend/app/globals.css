@@ -3,13 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --bg: #F8FAFC;
-  --card: #FFFFFF;
-  --text-primary: #111827;
+  --bg: #030712;
+  --card: #111827;
+  --text-primary: #F9FAFB;
   --text-secondary: #6B7280;
 }
 
-/* Auth pages keep dark background */
 body {
   background: var(--bg);
   color: var(--text-primary);
@@ -19,11 +18,11 @@ body {
 /* Smooth scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #e2e8f0 transparent;
+  scrollbar-color: #374151 transparent;
 }
 *::-webkit-scrollbar        { width: 6px; }
 *::-webkit-scrollbar-track  { background: transparent; }
-*::-webkit-scrollbar-thumb  { background: #e2e8f0; border-radius: 3px; }
+*::-webkit-scrollbar-thumb  { background: #374151; border-radius: 3px; }
 
 /* Selection colour */
-::selection { background: #2563EB20; color: #0F172A; }
+::selection { background: #fbbf2430; color: #fbbf24; }

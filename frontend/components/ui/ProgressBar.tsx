@@ -3,18 +3,18 @@ import { cn } from "@/lib/utils";
 interface ProgressBarProps {
   value: number;
   max: number;
-  color?: string;     // hex
+  color?: string;
   className?: string;
   size?: "sm" | "md" | "lg";
   showPercent?: boolean;
   label?: string;
-  warn?: boolean;     // shows red if over budget
+  warn?: boolean;
 }
 
 export function ProgressBar({
   value,
   max,
-  color = "#10B981",
+  color = "#34D399",
   className,
   size = "md",
   showPercent = false,
@@ -23,7 +23,7 @@ export function ProgressBar({
 }: ProgressBarProps) {
   const pct = Math.min(100, (value / max) * 100);
   const isOver = value > max;
-  const fillColor = warn && isOver ? "#EF4444" : color;
+  const fillColor = warn && isOver ? "#F87171" : color;
 
   const heights: Record<string, string> = { sm: "h-1.5", md: "h-2", lg: "h-3" };
 
@@ -31,15 +31,15 @@ export function ProgressBar({
     <div className={cn("w-full", className)}>
       {(label || showPercent) && (
         <div className="flex justify-between items-center mb-1.5">
-          {label && <span className="text-xs text-slate-500">{label}</span>}
+          {label && <span className="text-xs text-gray-500">{label}</span>}
           {showPercent && (
-            <span className={cn("text-xs font-medium", isOver && warn ? "text-red-500" : "text-slate-500")}>
+            <span className={cn("text-xs font-medium", isOver && warn ? "text-red-400" : "text-gray-500")}>
               {Math.round(pct)}%
             </span>
           )}
         </div>
       )}
-      <div className={cn("w-full bg-slate-100 rounded-full overflow-hidden", heights[size])}>
+      <div className={cn("w-full bg-gray-800 rounded-full overflow-hidden", heights[size])}>
         <div
           className="h-full rounded-full transition-all duration-500 ease-out"
           style={{ width: `${pct}%`, backgroundColor: fillColor }}

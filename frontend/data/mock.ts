@@ -47,14 +47,14 @@ export const categoryConfig: Record<
   Category,
   { label: string; color: string; bg: string; dot: string }
 > = {
-  rent:          { label: "Rent",          color: "#2563EB", bg: "#EFF6FF", dot: "bg-blue-600"    },
-  food:          { label: "Food & Drink",  color: "#10B981", bg: "#ECFDF5", dot: "bg-emerald-500" },
-  transport:     { label: "Transport",     color: "#8B5CF6", bg: "#F5F3FF", dot: "bg-violet-500"  },
-  entertainment: { label: "Entertainment", color: "#F97316", bg: "#FFF7ED", dot: "bg-orange-500"  },
-  bills:         { label: "Bills",         color: "#EF4444", bg: "#FEF2F2", dot: "bg-red-500"     },
-  shopping:      { label: "Shopping",      color: "#EC4899", bg: "#FDF2F8", dot: "bg-pink-500"    },
-  income:        { label: "Income",        color: "#059669", bg: "#ECFDF5", dot: "bg-emerald-600" },
-  other:         { label: "Other",         color: "#6B7280", bg: "#F9FAFB", dot: "bg-gray-400"    },
+  rent:          { label: "Rent",          color: "#60A5FA", bg: "#1E3A5F", dot: "bg-blue-400"    },
+  food:          { label: "Food & Drink",  color: "#34D399", bg: "#064E3B", dot: "bg-emerald-400" },
+  transport:     { label: "Transport",     color: "#A78BFA", bg: "#1E1A2E", dot: "bg-violet-400"  },
+  entertainment: { label: "Entertainment", color: "#FB923C", bg: "#2A1A0A", dot: "bg-orange-400"  },
+  bills:         { label: "Bills",         color: "#F87171", bg: "#2A1010", dot: "bg-red-400"     },
+  shopping:      { label: "Shopping",      color: "#F472B6", bg: "#2A1020", dot: "bg-pink-400"    },
+  income:        { label: "Income",        color: "#34D399", bg: "#0A2018", dot: "bg-emerald-400" },
+  other:         { label: "Other",         color: "#9CA3AF", bg: "#1C1C1E", dot: "bg-gray-400"    },
 };
 
 // ─── User ─────────────────────────────────────────────────────────────────────

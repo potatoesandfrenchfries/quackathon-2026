@@ -26,12 +26,12 @@ interface TierBadgeProps {
 }
 
 const tierColors: Record<string, { bg: string; text: string }> = {
-  newcomer:    { bg: "#F1F5F9", text: "#64748B" },
-  learner:     { bg: "#EFF6FF", text: "#2563EB" },
-  contributor: { bg: "#ECFDF5", text: "#10B981" },
-  trusted:     { bg: "#FFF7ED", text: "#F97316" },
-  advisor:     { bg: "#FDF4FF", text: "#A855F7" },
-  oracle:      { bg: "#F0F9FF", text: "#0EA5E9" },
+  newcomer:    { bg: "#1E293B", text: "#94A3B8" },
+  learner:     { bg: "#1E3A5F", text: "#60A5FA" },
+  contributor: { bg: "#064E3B", text: "#34D399" },
+  trusted:     { bg: "#431407", text: "#FB923C" },
+  advisor:     { bg: "#3B0764", text: "#C084FC" },
+  oracle:      { bg: "#0C4A6E", text: "#38BDF8" },
 };
 
 export function TierBadge({ tier, score, className }: TierBadgeProps) {

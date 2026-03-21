@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { LayoutGrid, PenLine, Trophy, User, Search, Bell } from "lucide-react";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/feed", icon: LayoutGrid },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutGrid },
   { label: "Ask", href: "/ask", icon: PenLine },
   { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
   { label: "Profile", href: "/profile", icon: User },
