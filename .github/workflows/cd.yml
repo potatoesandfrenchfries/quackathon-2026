@@ -1,0 +1,102 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  quality-gate:
+    name: Production Quality Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npm run build
+
+      - name: Backend syntax check
+        run: python -m compileall -q backend
+
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: quality-gate
+    environment: production
+
+    steps:
+      - name: Trigger frontend deployment
+        env:
+          DEPLOY_HOOK: ${{ secrets.FRONTEND_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "FRONTEND_DEPLOY_HOOK_URL not configured — skipping."
+            exit 0
+          fi
+          curl --fail --show-error --silent -X POST "$DEPLOY_HOOK"
+          echo "Frontend deployment triggered."
+
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    needs: quality-gate
+    environment: production
+
+    steps:
+      - name: Trigger backend deployment
+        env:
+          DEPLOY_HOOK: ${{ secrets.BACKEND_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "BACKEND_DEPLOY_HOOK_URL not configured — skipping."
+            exit 0
+          fi
+          curl --fail --show-error --silent -X POST "$DEPLOY_HOOK"
+          echo "Backend deployment triggered."
+
+  deploy-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [quality-gate, deploy-frontend, deploy-backend]
+    if: always()
+
+    steps:
+      - name: Summary
+        run: |
+          echo "Quality gate:     ${{ needs.quality-gate.result }}"
+          echo "Frontend deploy:  ${{ needs.deploy-frontend.result }}"
+          echo "Backend deploy:   ${{ needs.deploy-backend.result }}"
