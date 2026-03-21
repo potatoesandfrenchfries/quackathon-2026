@@ -154,7 +154,7 @@ If these secrets are not set, deploy jobs will be skipped safely, while CI still
 
 ### Vercel — Frontend
 
-`vercel.json` at the repo root points Vercel at the `frontend/` subdirectory. Set these in **Vercel Dashboard → Project → Settings → Environment Variables**:
+`vercel.json` at the repo root explicitly builds the `frontend/` Next.js app in this monorepo. Set these in **Vercel Dashboard → Project → Settings → Environment Variables**:
 
 | Variable | Notes |
 |---|---|
@@ -162,7 +162,7 @@ If these secrets are not set, deploy jobs will be skipped safely, while CI still
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable key — safe to expose |
 | `ANTHROPIC_API_KEY` | **Secret** — powers `/api/advisor` serverless route |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Secret** — lets advisor cache responses to DB |
-| `NEXT_PUBLIC_API_URL` | URL of your Render backend once deployed |
+| `NEXT_PUBLIC_API_URL` | URL of your Render backend once deployed (required for backend-powered pages) |
 
 ### Render — Backend
 
