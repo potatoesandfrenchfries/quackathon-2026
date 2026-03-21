@@ -75,20 +75,6 @@ const DEMO_POSTS_DATA: Record<string, any> = {
       { id: "demo-c2", post_id: "demo-3", author_id: "u7", content: "Yes, excellent choice. One thing to add: consider VWRP (accumulating) over VWRL (distributing) since dividends are automatically reinvested, which compounds better and avoids the admin of reinvesting manually. At £50/month the platform fee matters more than the fund — Vanguard charges 0.15% capped at £375/year, making it the cheapest until you hit £250k.", stake_amount: 100, fact_check_status: "accurate", author_username: "moderate_mike", author_display_name: "Mike", author_total_cred: 580, author_topic_cred: 490, vote_total: 22, vote_count: 22, created_at: new Date(Date.now() - 1000*60*60*18).toISOString() },
     ],
   },
-  "demo-4": {
-    id: "demo-4", author_id: "demo",
-    title: "My landlord is charging £150 to 'professionally clean' the flat — is this legal?",
-    body: "I moved out of a student house last month and now my landlord is trying to deduct £150 from my deposit for professional cleaning even though we left the place spotless. Can they do this?",
-    topic: "rent", resolved: false, accepted_answer_id: null,
-    view_count: 98, created_at: new Date(Date.now() - 1000*60*60*2).toISOString(),
-    updated_at: new Date().toISOString(),
-    profiles: { username: "angry_renter", display_name: "Sam" },
-    ai_responses: null,
-    answers_enriched: [
-      { id: "demo-d1", post_id: "demo-4", author_id: "u8", content: "This is a classic deposit dispute. Under the Tenant Fees Act 2019, landlords CANNOT charge for professional cleaning unless the inventory/check-in report specifically noted the property was professionally cleaned at the start of your tenancy. They can only claim the cost of returning the property to its original condition — if you left it 'spotless', they likely have no claim. Raise a formal dispute with your deposit protection scheme (TDS, DPS, or MyDeposits) immediately — it's free and landlords lose most spurious cleaning claims.", stake_amount: 250, fact_check_status: "accurate", author_username: "legal_laura", author_display_name: "Laura H.", author_total_cred: 890, author_topic_cred: 720, vote_total: 38, vote_count: 38, created_at: new Date(Date.now() - 1000*60*60*1).toISOString() },
-      { id: "demo-d2", post_id: "demo-4", author_id: "u9", content: "Dispute it through the scheme — I won a similar case. Key evidence: take timestamped photos now if you haven't already. Check your check-in report for any mention of 'professionally cleaned'. The burden of proof is on the landlord. Citizens Advice has a great template letter for challenging deposit deductions.", stake_amount: 150, fact_check_status: "accurate", author_username: "renter_rights", author_display_name: "Tom", author_total_cred: 640, author_topic_cred: 580, vote_total: 19, vote_count: 19, created_at: new Date(Date.now() - 1000*60*45).toISOString() },
-    ],
-  },
   "demo-5": {
     id: "demo-5", author_id: "demo",
     title: "Does using Wise to send money home actually save compared to a UK bank transfer?",
@@ -332,27 +318,34 @@ export default function PostDetailPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     if (isDemo) {
       const demoData = DEMO_POSTS_DATA[postId];
       if (demoData) {
         setPost(demoData);
+        setError(null);
+        setLoading(false);
         // Simulate AI loading for demo
         setAdvisorLoading(true);
-        const t = setTimeout(() => {
+        timeoutId = setTimeout(() => {
           setAdvisorResponse(DEMO_AI[postId] ?? null);
           setAdvisorLoading(false);
         }, 1400);
-        return () => clearTimeout(t);
       } else {
         setError("Post not found");
+        setLoading(false);
       }
-      setLoading(false);
-      return;
+      return () => {
+        if (timeoutId) clearTimeout(timeoutId);
+      };
     }
 
     fetchPost(postId)
       .then((postData) => {
         setPost(postData);
+        setError(null);
+        setLoading(false);
         const cached = postData.ai_responses?.response_json ?? null;
         if (cached) {
           setAdvisorResponse(cached as unknown as AIResponse);
@@ -369,8 +362,10 @@ export default function PostDetailPage() {
             .finally(() => setAdvisorLoading(false));
         }
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        setError(e.message);
+        setLoading(false);
+      });
   }, [postId, isDemo]);
 
   async function handleComment() {

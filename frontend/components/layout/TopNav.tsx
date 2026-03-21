@@ -16,7 +16,7 @@ export function TopNav() {
   const pathname = usePathname();
 
   return (
-    <header className="fixed top-0 right-0 left-0 z-50 h-16 flex items-center justify-between border-b border-white/5 bg-gray-950/95 px-6 backdrop-blur-xl">
+    <header className="fixed top-0 right-0 left-0 z-50 h-14 sm:h-16 flex items-center justify-between border-b border-white/5 bg-gray-950/95 px-3 sm:px-6 backdrop-blur-xl">
       {/* Logo */}
       <Link href="/feed" className="flex items-center gap-2.5 shrink-0">
         <div className="h-8 w-8 rounded-lg bg-amber-400 flex items-center justify-center">
@@ -29,7 +29,7 @@ export function TopNav() {
       </Link>
 
       {/* Center pill nav */}
-      <nav className="flex items-center gap-0.5 bg-gray-900 rounded-full p-1 border border-gray-800">
+      <nav className="flex items-center gap-0.5 bg-gray-900 rounded-full p-0.5 sm:p-1 border border-gray-800">
         {NAV_ITEMS.map((item) => {
           const isActive =
             item.href === "/feed"
@@ -41,14 +41,14 @@ export function TopNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                "flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full text-sm font-medium transition-all duration-200",
                 isActive
                   ? "bg-amber-400 text-gray-950 shadow-sm"
                   : "text-gray-400 hover:text-gray-200"
               )}
             >
               <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden md:block">{item.label}</span>
+              <span className="hidden sm:block">{item.label}</span>
             </Link>
           );
         })}

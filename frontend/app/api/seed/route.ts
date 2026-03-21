@@ -45,13 +45,6 @@ const DEMO_POSTS = [
     resolved: true,
   },
   {
-    authorEmail: "sam@buddy-demo.local",
-    title: "My landlord is charging £150 to 'professionally clean' the flat — is this legal?",
-    body: "I moved out of a student house last month and now my landlord is trying to deduct £150 from my deposit for professional cleaning even though we left the place spotless. Can they legally do this?",
-    topic: "rent",
-    resolved: false,
-  },
-  {
     authorEmail: "rohan@buddy-demo.local",
     title: "Does using Wise to send money home actually save compared to a UK bank transfer?",
     body: "My family is back in India and I want to send £200 home monthly. My bank charges a flat £15 fee plus a terrible exchange rate. Is Wise genuinely cheaper or is the marketing misleading?",
@@ -102,11 +95,7 @@ const DEMO_ANSWERS = [
     authorEmail: "rohan@buddy-demo.local",
     content: "Yes, FTSE All-World is exactly what most financial educators recommend for beginners — low cost (~0.22% OCF), globally diversified, no stock-picking needed. For platform: InvestEngine is zero-fee for ETFs which saves a lot on small amounts. £50/month over 10 years at historical 7% returns = roughly £8,700. Start now rather than later.",
   },
-  {
-    postTitle: "My landlord is charging £150 to professionally clean",
-    authorEmail: "alex@buddy-demo.local",
-    content: "This depends on whether your check-in inventory noted the flat as professionally cleaned. If it did, they can require you to return it that way. If not, they can only charge for 'fair wear and tear' above normal use. Dispute it through the deposit scheme (TDS/DPS) — they're free and landlords lose these cases regularly if there's no evidence.",
-  },
+
   {
     postTitle: "Does using Wise to send money home actually save",
     authorEmail: "priya@buddy-demo.local",

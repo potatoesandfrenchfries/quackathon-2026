@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createPost } from "@/lib/supabase/posts";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ const TOPICS: { value: Topic; label: string; description: string }[] = [
   { value: "general", label: "General", description: "Anything else financial" },
 ];
 
-export default function AskPage() {
+function AskPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [form, setForm] = useState({
@@ -156,5 +156,13 @@ export default function AskPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function AskPage() {
+  return (
+    <Suspense>
+      <AskPageContent />
+    </Suspense>
   );
 }
