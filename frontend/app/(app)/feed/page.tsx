@@ -151,13 +151,10 @@ const QUICK = [
 
 // ─── post card ─────────────────────────────────────────────────────────────────
 
-function PostCard({ post, isDemo }: { post: Post; isDemo?: boolean }) {
+function PostCard({ post }: { post: Post }) {
   const color  = TOPIC_COLOR[post.topic];
   const author = post.profiles?.display_name || post.profiles?.username || "Anonymous";
-  // Demo posts pre-fill /ask so clicking actually does something useful
-  const href   = isDemo
-    ? `/ask?${new URLSearchParams({ title: post.title, body: post.body, topic: post.topic })}`
-    : `/feed/${post.id}`;
+  const href = `/feed/${post.id}`;
 
   return (
     <Link href={href} className="group block">
@@ -359,7 +356,7 @@ export default function FeedPage() {
           {/* Demo posts */}
           {!loading && demoPosts && demoPosts.length > 0 && (
             <div>
-              {demoPosts.map((p) => <PostCard key={p.id} post={p} isDemo />)}
+              {demoPosts.map((p) => <PostCard key={p.id} post={p} />)}
             </div>
           )}
 
