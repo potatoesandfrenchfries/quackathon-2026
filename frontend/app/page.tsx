@@ -19,12 +19,18 @@ export default function LandingPage() {
           Ask questions, share knowledge, earn trust. The AI already knows who to believe.
         </p>
 
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center flex-wrap">
           <Link
-            href="/dashboard"
+            href="/login"
             className="px-8 py-3 bg-amber-400 text-gray-950 font-semibold rounded-lg hover:bg-amber-300 transition-colors"
           >
-            Get Started
+            Sign In / Join →
+          </Link>
+          <Link
+            href="/feed"
+            className="px-8 py-3 border border-gray-700 text-gray-300 font-semibold rounded-lg hover:border-gray-500 hover:text-white transition-colors"
+          >
+            Browse Forum
           </Link>
         </div>
 

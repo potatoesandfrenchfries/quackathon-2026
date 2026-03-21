@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, ArrowLeftRight, PieChart, Target,
-  User, Users, X, Flame,
+  User, Users, X, Flame, Zap,
 } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import { TierBadge } from "@/components/ui/Badge";
@@ -11,6 +11,7 @@ import { TierBadge } from "@/components/ui/Badge";
 const navItems = [
   { href: "/dashboard",    label: "Dashboard",    icon: LayoutDashboard },
   { href: "/feed",         label: "Community",    icon: Users           },
+  { href: "/check",        label: "AI Checks",    icon: Zap             },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight  },
   { href: "/budget",       label: "Budget",       icon: PieChart        },
   { href: "/goals",        label: "Goals",        icon: Target          },

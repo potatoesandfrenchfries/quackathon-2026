@@ -2,9 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ThumbsUp, ThumbsDown, Sparkles, CheckCircle2, Clock, Eye } from "lucide-react";
-import { api } from "@/lib/api";
-import { CredibilityBadge, TIER_CONFIG, tierFromScore } from "@/components/CredibilityBadge";
+import {
+  ArrowLeft,
+  ThumbsUp,
+  ThumbsDown,
+  Sparkles,
+  CheckCircle2,
+  Clock,
+  Eye,
+  Loader2,
+  Lock,
+} from "lucide-react";
+import { fetchPost, createAnswer } from "@/lib/supabase/posts";
+import { castVote } from "@/lib/supabase/posts";
+import { CredibilityBadge, tierFromScore } from "@/components/CredibilityBadge";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import type { Post, AnswerEnriched, AIResponse, Topic } from "@/types/database";
 
@@ -18,64 +29,80 @@ const TOPIC_COLORS: Record<Topic, string> = {
   general: "bg-gray-400/10 text-gray-400 border-gray-400/30",
 };
 
-function AIAdvisorCard({ ai }: { ai: AIResponse }) {
+// ─── AI Advisor Card ──────────────────────────────────────────────────────────
+
+function AIAdvisorCard({
+  ai,
+  answerCount,
+}: {
+  ai: AIResponse;
+  answerCount: number;
+}) {
   return (
     <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-6 space-y-4">
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-amber-400" />
-        <p className="font-mono text-[10px] uppercase tracking-widest text-amber-400">
-          Buddy AI Advisor
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-amber-400">
+              Buddy AI Advisor
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Synthesised from {answerCount} community answer
+              {answerCount !== 1 ? "s" : ""}, weighted by topic credibility
+              {ai.top_source_username && (
+                <> · top source: <span className="text-gray-300">@{ai.top_source_username}</span>
+                  {ai.top_source_cred != null && (
+                    <span className="text-amber-400/70"> ({ai.top_source_cred} pts)</span>
+                  )}
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Confidence pill */}
+        <div className="shrink-0 flex flex-col items-end gap-1">
+          <span className="font-mono text-xs text-amber-400 font-bold">
+            {Math.round(ai.confidence * (ai.confidence <= 1 ? 100 : 1))}% confidence
+          </span>
+          <div className="w-24 h-1.5 rounded-full bg-gray-800">
+            <div
+              className="h-full rounded-full bg-amber-400 transition-all"
+              style={{
+                width: `${Math.round(
+                  ai.confidence * (ai.confidence <= 1 ? 100 : 1)
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="space-y-3">
-        <div>
-          <p className="text-xs font-mono uppercase tracking-wider text-gray-500 mb-1">Summary</p>
-          <p className="text-gray-100">{ai.summary}</p>
-        </div>
+        <p className="text-gray-100 leading-relaxed">{ai.summary}</p>
 
         <div className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-4 py-3">
-          <p className="text-xs font-mono uppercase tracking-wider text-amber-400/70 mb-0.5">Recommended Action</p>
+          <p className="text-xs font-mono uppercase tracking-wider text-amber-400/70 mb-0.5">
+            Recommended Action
+          </p>
           <p className="text-amber-300 font-semibold">{ai.action}</p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <p className="text-xs font-mono uppercase tracking-wider text-gray-500 shrink-0">
-            Confidence
-          </p>
-          <div className="flex-1 h-1.5 rounded-full bg-gray-800">
-            <div
-              className="h-full rounded-full bg-amber-400 transition-all"
-              style={{ width: `${Math.round(ai.confidence * 100)}%` }}
-            />
-          </div>
-          <span className="text-xs font-mono text-amber-400 shrink-0">
-            {Math.round(ai.confidence * 100)}%
-          </span>
-        </div>
-
-        {ai.top_source_username && (
-          <p className="text-xs text-gray-500">
-            Top source:{" "}
-            <span className="text-gray-300 font-medium">{ai.top_source_username}</span>
-            {ai.top_source_cred !== undefined && (
-              <span className="ml-1 text-gray-600">
-                ({ai.top_source_cred.toLocaleString()} credibility)
-              </span>
-            )}
-          </p>
-        )}
-
         {ai.reasoning && (
           <div>
-            <p className="text-xs font-mono uppercase tracking-wider text-gray-500 mb-1">Reasoning</p>
+            <p className="text-xs font-mono uppercase tracking-wider text-gray-500 mb-1">
+              Why this source was weighted most
+            </p>
             <p className="text-sm text-gray-400">{ai.reasoning}</p>
           </div>
         )}
 
         {ai.resources && ai.resources.length > 0 && (
           <div>
-            <p className="text-xs font-mono uppercase tracking-wider text-gray-500 mb-1">Resources</p>
+            <p className="text-xs font-mono uppercase tracking-wider text-gray-500 mb-1">
+              Resources
+            </p>
             <ul className="space-y-1">
               {ai.resources.map((r, i) => (
                 <li key={i} className="text-sm text-amber-400/80 hover:text-amber-400 transition-colors">
@@ -86,20 +113,44 @@ function AIAdvisorCard({ ai }: { ai: AIResponse }) {
           </div>
         )}
 
-        <p className="text-xs text-gray-600 italic border-t border-gray-800 pt-3">{ai.disclaimer}</p>
+        <p className="text-xs text-gray-600 italic border-t border-gray-800 pt-3">
+          {ai.disclaimer}
+        </p>
       </div>
     </div>
   );
 }
 
+function AIAdvisorLoading() {
+  return (
+    <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-6">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-4 w-4 text-amber-400 animate-spin shrink-0" />
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-amber-400">
+            Buddy AI Advisor
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Researching current UK financial data…
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Answer Card ──────────────────────────────────────────────────────────────
+
 function AnswerCard({
   answer,
   isAccepted,
   onVote,
+  postTopic,
 }: {
   answer: AnswerEnriched;
   isAccepted: boolean;
   onVote: (answerId: string, value: 1 | -1) => void;
+  postTopic: Topic;
 }) {
   const tier = tierFromScore(answer.author_total_cred);
 
@@ -113,21 +164,45 @@ function AnswerCard({
       )}
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-start gap-2 flex-wrap">
           {isAccepted && (
-            <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
           )}
-          <span className="font-medium text-gray-200">
-            {answer.author_display_name || answer.author_username}
-          </span>
-          <CredibilityBadge score={answer.author_total_cred} tier={tier} size="sm" showLabel />
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-gray-200">
+                {answer.author_display_name || answer.author_username}
+              </span>
+              <CredibilityBadge
+                score={answer.author_total_cred}
+                tier={tier}
+                size="sm"
+                showLabel
+              />
+              {/* Staking badge */}
+              {(answer as any).stake_amount > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-400">
+                  <Lock className="h-2.5 w-2.5" />
+                  {(answer as any).stake_amount} pts staked
+                </span>
+              )}
+            </div>
+            {/* Topic-specific credibility — the number that actually matters */}
+            {answer.author_topic_cred != null && answer.author_topic_cred > 0 && (
+              <p className="text-[10px] text-amber-400/60 mt-0.5">
+                {answer.author_topic_cred} pts in {postTopic}
+              </p>
+            )}
+          </div>
         </div>
         <span className="text-xs text-gray-600 shrink-0">
           {formatRelativeTime(answer.created_at)}
         </span>
       </div>
 
-      <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{answer.content}</p>
+      <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+        {answer.content}
+      </p>
 
       <div className="flex items-center justify-between pt-2 border-t border-gray-800">
         <div className="flex items-center gap-1">
@@ -165,6 +240,8 @@ function AnswerCard({
   );
 }
 
+// ─── Page ────────────────────────────────────────────────────────────────────
+
 export default function QuestionDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -174,24 +251,59 @@ export default function QuestionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // AI Advisor state — separate from post so it can load independently
+  const [advisorResponse, setAdvisorResponse] = useState<AIResponse | null>(null);
+  const [advisorLoading, setAdvisorLoading] = useState(false);
+
   const [newAnswer, setNewAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.posts
-      .get(postId)
-      .then(setPost)
+    fetchPost(postId)
+      .then((postData) => {
+        setPost(postData);
+        // If DB already has a cached AI response, use it immediately
+        const cached = postData.ai_responses?.response_json ?? null;
+        if (cached) {
+          setAdvisorResponse(cached as unknown as AIResponse);
+        } else {
+          // Otherwise kick off the advisor (with web research)
+          setAdvisorLoading(true);
+          fetch("/api/advisor", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ postId }),
+          })
+            .then((r) => r.json())
+            .then((ai) => {
+              if (!ai.error) setAdvisorResponse(ai as AIResponse);
+            })
+            .catch(console.error)
+            .finally(() => setAdvisorLoading(false));
+        }
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [postId]);
 
   async function handleVote(answerId: string, value: 1 | -1) {
-    try {
-      await api.votes.cast(answerId, value);
-    } catch {
-      // silent fail for now — auth guard will surface on login redirect
-    }
+    if (!post) return;
+    // Optimistic update
+    setPost((prev) =>
+      prev
+        ? {
+            ...prev,
+            answers_enriched: prev.answers_enriched.map((a) =>
+              a.id === answerId
+                ? { ...a, vote_total: a.vote_total + value }
+                : a
+            ),
+          }
+        : prev
+    );
+    // Fire-and-forget — castVote is silent when there's no auth session
+    castVote(answerId, value).catch(console.warn);
   }
 
   async function handleAnswer() {
@@ -199,9 +311,8 @@ export default function QuestionDetailPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await api.answers.create({ post_id: postId, content: newAnswer.trim() });
-      // Refresh post data
-      const updated = await api.posts.get(postId);
+      await createAnswer(postId, newAnswer.trim());
+      const updated = await fetchPost(postId);
       setPost(updated);
       setNewAnswer("");
     } catch (e: any) {
@@ -216,6 +327,7 @@ export default function QuestionDetailPage() {
       <div className="space-y-6">
         <div className="h-8 w-32 rounded-lg bg-gray-800 animate-pulse" />
         <div className="h-48 rounded-xl bg-gray-900 animate-pulse" />
+        <div className="h-24 rounded-xl bg-gray-900 animate-pulse" />
         <div className="h-32 rounded-xl bg-gray-900 animate-pulse" />
       </div>
     );
@@ -235,13 +347,13 @@ export default function QuestionDetailPage() {
     );
   }
 
-  const ai = post.ai_responses?.response_json ?? null;
   const answers = post.answers_enriched ?? [];
-  const authorName = post.profiles?.display_name || post.profiles?.username || "Anonymous";
+  const authorName =
+    post.profiles?.display_name || post.profiles?.username || "Anonymous";
 
   return (
     <div className="max-w-3xl space-y-8">
-      {/* Back button */}
+      {/* Back */}
       <button
         onClick={() => router.push("/feed")}
         className="flex items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors text-sm"
@@ -270,7 +382,9 @@ export default function QuestionDetailPage() {
         </div>
 
         <h1 className="text-2xl font-bold text-gray-100">{post.title}</h1>
-        <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{post.body}</p>
+        <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+          {post.body}
+        </p>
 
         <div className="flex items-center justify-between pt-3 border-t border-gray-800">
           <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -290,8 +404,11 @@ export default function QuestionDetailPage() {
         </div>
       </div>
 
-      {/* AI Advisor */}
-      {ai && <AIAdvisorCard ai={ai} />}
+      {/* AI Advisor — hero position between question and answers */}
+      {advisorLoading && <AIAdvisorLoading />}
+      {!advisorLoading && advisorResponse && (
+        <AIAdvisorCard ai={advisorResponse} answerCount={answers.length} />
+      )}
 
       {/* Answers */}
       <div className="space-y-4">
@@ -300,13 +417,17 @@ export default function QuestionDetailPage() {
             {answers.length} Answer{answers.length !== 1 ? "s" : ""}
           </p>
           {answers.length > 0 && (
-            <p className="text-xs text-gray-600">Sorted by credibility-weighted votes</p>
+            <p className="text-xs text-gray-600">
+              Sorted by credibility-weighted votes
+            </p>
           )}
         </div>
 
         {answers.length === 0 && (
           <div className="rounded-xl border border-gray-800 bg-gray-900 p-8 text-center">
-            <p className="text-gray-500 text-sm">No answers yet. Be the first to help!</p>
+            <p className="text-gray-500 text-sm">
+              No answers yet. Be the first to help!
+            </p>
           </div>
         )}
 
@@ -316,13 +437,16 @@ export default function QuestionDetailPage() {
             answer={answer}
             isAccepted={answer.id === post.accepted_answer_id}
             onVote={handleVote}
+            postTopic={post.topic}
           />
         ))}
       </div>
 
       {/* Post answer */}
       <div className="space-y-3">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-gray-500">Your Answer</p>
+        <p className="font-mono text-[10px] uppercase tracking-widest text-gray-500">
+          Your Answer
+        </p>
         <textarea
           className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-gray-100 placeholder:text-gray-600 focus:border-amber-400 focus:outline-none transition-colors resize-none"
           placeholder="Share what you know. Your credibility score in this topic influences how much your answer is weighted by the AI advisor."
@@ -330,9 +454,7 @@ export default function QuestionDetailPage() {
           onChange={(e) => setNewAnswer(e.target.value)}
           rows={5}
         />
-        {submitError && (
-          <p className="text-red-400 text-sm">{submitError}</p>
-        )}
+        {submitError && <p className="text-red-400 text-sm">{submitError}</p>}
         <button
           onClick={handleAnswer}
           disabled={submitting || newAnswer.trim().length < 10}

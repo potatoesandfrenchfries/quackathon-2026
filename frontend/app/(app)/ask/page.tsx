@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createPost } from "@/lib/supabase/posts";
 import { cn } from "@/lib/utils";
 import type { Topic } from "@/types/database";
 
@@ -18,7 +18,12 @@ const TOPICS: { value: Topic; label: string; description: string }[] = [
 
 export default function AskPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ title: "", body: "", topic: "" as Topic | "" });
+  const searchParams = useSearchParams();
+  const [form, setForm] = useState({
+    title: searchParams.get("title") ?? "",
+    body: searchParams.get("body") ?? "",
+    topic: (searchParams.get("topic") ?? "") as Topic | "",
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +34,7 @@ export default function AskPage() {
     setLoading(true);
     setError(null);
     try {
-      const post = await api.posts.create({
+      const post = await createPost({
         title: form.title.trim(),
         body: form.body.trim(),
         topic: form.topic as Topic,

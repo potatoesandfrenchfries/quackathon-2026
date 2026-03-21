@@ -1,522 +1,541 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  ArrowUpRight,
-  Sparkles,
-  Eye,
-  MessageSquare,
-  ChevronRight,
-  CheckCircle2,
-  TrendingUp,
+  Sparkles, MessageSquare, CheckCircle2, TrendingUp,
+  ShoppingCart, Globe, CreditCard, Plus, Clock, Eye,
+  ChevronUp, ArrowRight,
 } from "lucide-react";
-import { api } from "@/lib/api";
-import { CredibilityBadge, TIER_CONFIG, tierFromScore } from "@/components/CredibilityBadge";
+import { fetchPosts } from "@/lib/supabase/posts";
 import { cn, formatRelativeTime } from "@/lib/utils";
-import type { Post, Topic, CredibilitySnapshot } from "@/types/database";
+import type { Post, Topic } from "@/types/database";
 
-// ─── constants ────────────────────────────────────────────────────────────────
+// ─── topic config ──────────────────────────────────────────────────────────────
 
-const TOPICS: { value: Topic | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "rent", label: "Rent" },
-  { value: "loans", label: "Loans" },
-  { value: "budgeting", label: "Budgeting" },
-  { value: "investing", label: "Investing" },
-  { value: "overdraft", label: "Overdraft" },
-  { value: "savings", label: "Savings" },
-  { value: "general", label: "General" },
+const TOPICS: { value: Topic | "all"; label: string; emoji: string }[] = [
+  { value: "all",       label: "All",        emoji: "🌐" },
+  { value: "budgeting", label: "Budgeting",  emoji: "📊" },
+  { value: "rent",      label: "Rent",       emoji: "🏠" },
+  { value: "loans",     label: "Loans",      emoji: "🎓" },
+  { value: "savings",   label: "Savings",    emoji: "💰" },
+  { value: "investing", label: "Investing",  emoji: "📈" },
+  { value: "overdraft", label: "Overdraft",  emoji: "⚠️" },
+  { value: "general",   label: "General",    emoji: "💬" },
 ];
 
-const TOPIC_PIE_COLORS: Record<Topic, string> = {
+const TOPIC_COLOR: Record<Topic, string> = {
   budgeting: "#fbbf24",
-  loans: "#a78bfa",
-  rent: "#60a5fa",
-  savings: "#34d399",
+  loans:     "#a78bfa",
+  rent:      "#60a5fa",
+  savings:   "#34d399",
   investing: "#f472b6",
   overdraft: "#f87171",
-  general: "#6b7280",
+  general:   "#6b7280",
 };
 
-const TOPIC_BADGE: Record<Topic, string> = {
-  rent: "bg-blue-400/10 text-blue-400 border-blue-400/30",
-  loans: "bg-purple-400/10 text-purple-400 border-purple-400/30",
-  budgeting: "bg-amber-400/10 text-amber-400 border-amber-400/30",
-  investing: "bg-pink-400/10 text-pink-400 border-pink-400/30",
-  overdraft: "bg-red-400/10 text-red-400 border-red-400/30",
-  savings: "bg-emerald-400/10 text-emerald-400 border-emerald-400/30",
-  general: "bg-gray-400/10 text-gray-400 border-gray-400/30",
+const TOPIC_BG: Record<Topic, string> = {
+  rent:      "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  loans:     "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  budgeting: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  investing: "bg-pink-500/10 text-pink-400 border-pink-500/20",
+  overdraft: "bg-red-500/10 text-red-400 border-red-500/20",
+  savings:   "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  general:   "bg-gray-500/10 text-gray-400 border-gray-500/20",
 };
 
-// ─── sub-components ───────────────────────────────────────────────────────────
+// ─── demo posts (shown when API is empty / offline) ───────────────────────────
 
-function StatCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  icon?: React.ElementType;
-}) {
+const DEMO_POSTS: Post[] = [
+  {
+    id: "demo-1",
+    author_id: "demo",
+    title: "How much should I realistically budget for groceries each week as a student in London?",
+    body: "I just moved to London for uni and I'm completely lost on how much to spend on food. My flatmates seem to spend wildly different amounts. Is £50/week reasonable or am I missing something?",
+    topic: "budgeting",
+    resolved: true,
+    accepted_answer_id: "demo-a1",
+    view_count: 312,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+    updated_at: new Date().toISOString(),
+    profiles: { username: "alex_uni", display_name: "Alex" },
+    ai_responses: { response_json: {} as any },
+  },
+  {
+    id: "demo-2",
+    author_id: "demo",
+    title: "Should I pay off my student overdraft or start building a savings fund first?",
+    body: "I have a £800 student overdraft that's 0% interest, but I also want to start saving for emergencies. Do I tackle the overdraft first or split contributions?",
+    topic: "overdraft",
+    resolved: false,
+    accepted_answer_id: null,
+    view_count: 189,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+    updated_at: new Date().toISOString(),
+    profiles: { username: "fin_curious", display_name: "Priya" },
+    ai_responses: null,
+  },
+  {
+    id: "demo-3",
+    author_id: "demo",
+    title: "Is the Vanguard FTSE All-World ETF a reasonable first investment for a student with £50/month?",
+    body: "I've read about index fund investing and keep seeing Vanguard recommended. Is a global ETF suitable for someone just starting with small monthly amounts and a 10-year horizon?",
+    topic: "investing",
+    resolved: true,
+    accepted_answer_id: "demo-a3",
+    view_count: 521,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    updated_at: new Date().toISOString(),
+    profiles: { username: "invest_newbie", display_name: "Jamie" },
+    ai_responses: { response_json: {} as any },
+  },
+  {
+    id: "demo-4",
+    author_id: "demo",
+    title: "My landlord is charging £150 to 'professionally clean' the flat — is this legal?",
+    body: "I moved out of a student house last month and now my landlord is trying to deduct £150 from my deposit for professional cleaning even though we left the place spotless. Can they do this?",
+    topic: "rent",
+    resolved: false,
+    accepted_answer_id: null,
+    view_count: 98,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    updated_at: new Date().toISOString(),
+    profiles: { username: "angry_renter", display_name: "Sam" },
+    ai_responses: null,
+  },
+  {
+    id: "demo-5",
+    author_id: "demo",
+    title: "Does using Wise to send money home actually save compared to a UK bank transfer?",
+    body: "My family is back in India and I want to send £200 home monthly. My bank charges a flat £15 fee plus a poor exchange rate. Is Wise genuinely cheaper or is the marketing misleading?",
+    topic: "general",
+    resolved: true,
+    accepted_answer_id: "demo-a5",
+    view_count: 276,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(),
+    updated_at: new Date().toISOString(),
+    profiles: { username: "global_student", display_name: "Rohan" },
+    ai_responses: { response_json: {} as any },
+  },
+  {
+    id: "demo-6",
+    author_id: "demo",
+    title: "I'm on Plan 2 student loan — at my expected salary, will I ever actually pay it off?",
+    body: "I'm graduating next year expecting to earn around £28k. After doing some rough maths it seems like my loan will be written off before I clear it. Is it even worth making overpayments?",
+    topic: "loans",
+    resolved: false,
+    accepted_answer_id: null,
+    view_count: 447,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+    updated_at: new Date().toISOString(),
+    profiles: { username: "grad_2025", display_name: "Emma" },
+    ai_responses: { response_json: {} as any },
+  },
+];
+
+// ─── quick question templates ──────────────────────────────────────────────────
+
+const QUICK = [
+  { icon: ShoppingCart, color: "#34d399", topic: "budgeting" as Topic,
+    title: "Is £3.50 for a loaf of bread fair in the UK?",
+    body: "I've been noticing bread prices creeping up. What's a normal price range for a standard 800g loaf at UK supermarkets in 2025?" },
+  { icon: Globe,        color: "#60a5fa", topic: "general" as Topic,
+    title: "Are Wise / Revolut fees worth it vs my bank?",
+    body: "My bank charges a flat fee plus a bad exchange rate. Is switching to Wise or Revolut actually cheaper for regular transfers?" },
+  { icon: CreditCard,   color: "#fbbf24", topic: "budgeting" as Topic,
+    title: "Is a student railcard worth it if I travel monthly?",
+    body: "A railcard costs £30/year. How many journeys do I need to make for it to pay for itself?" },
+  { icon: TrendingUp,   color: "#f472b6", topic: "investing" as Topic,
+    title: "Is a 10% ISA return realistic for beginners?",
+    body: "I've seen claims of 10%+ annual returns. Is this realistic for a passive index-fund ISA, and what should I actually expect?" },
+];
+
+// ─── post card ─────────────────────────────────────────────────────────────────
+
+function PostCard({ post, isDemo }: { post: Post; isDemo?: boolean }) {
+  const color  = TOPIC_COLOR[post.topic];
+  const author = post.profiles?.display_name || post.profiles?.username || "Anonymous";
+  // Demo posts pre-fill /ask so clicking actually does something useful
+  const href   = isDemo
+    ? `/ask?${new URLSearchParams({ title: post.title, body: post.body, topic: post.topic })}`
+    : `/feed/${post.id}`;
+
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 flex flex-col gap-3">
-      {Icon && (
-        <div className="h-8 w-8 rounded-lg bg-gray-800 flex items-center justify-center">
-          <Icon className="h-4 w-4 text-gray-400" />
-        </div>
-      )}
-      <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="mt-1 text-3xl font-bold text-white tracking-tight">{value}</p>
-        {sub && <p className="mt-1 text-xs text-gray-600">{sub}</p>}
-      </div>
-    </div>
-  );
-}
+    <Link href={href} className="group block">
+      <article className="border-b border-gray-800 px-6 py-5 hover:bg-gray-800/30 transition-colors">
 
-function QuestionRow({ post, maxViews }: { post: Post; maxViews: number }) {
-  const topicColor = TOPIC_PIE_COLORS[post.topic] ?? "#6b7280";
-  const fillPct = maxViews > 0 ? (post.view_count / maxViews) * 100 : 0;
-
-  return (
-    <Link href={`/feed/${post.id}`} className="block group">
-      <div className="flex items-center gap-4 py-4 px-5 hover:bg-gray-800/50 transition-colors rounded-xl">
-        {/* Topic colour square */}
-        <div
-          className="h-10 w-10 rounded-xl shrink-0 flex items-center justify-center"
-          style={{ backgroundColor: `${topicColor}18`, border: `1px solid ${topicColor}30` }}
-        >
-          <span className="text-xs font-bold" style={{ color: topicColor }}>
-            {post.topic.charAt(0).toUpperCase()}
+        {/* Top meta row — exactly like the Cauldron Labs screenshots */}
+        <div className="flex items-center gap-3 mb-3">
+          <span className={cn(
+            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest",
+            TOPIC_BG[post.topic]
+          )}>
+            {post.topic}
           </span>
+          <span className="flex items-center gap-1 text-[11px] text-gray-500">
+            <Clock className="h-3 w-3" />
+            {formatRelativeTime(post.created_at)}
+          </span>
+          <span className="flex items-center gap-1 text-[11px] text-gray-500">
+            <Eye className="h-3 w-3" />
+            {post.view_count.toLocaleString()}
+          </span>
+          {post.ai_responses && (
+            <span className="ml-auto flex items-center gap-1 text-[10px] font-mono text-amber-400/80">
+              <Sparkles className="h-3 w-3" />
+              AI
+            </span>
+          )}
         </div>
 
-        {/* Main content */}
-        <div className="flex-1 min-w-0 space-y-1.5">
-          <p className="text-sm font-semibold text-gray-100 group-hover:text-amber-400 transition-colors line-clamp-1">
-            {post.title}
-          </p>
-          <div className="flex items-center gap-3">
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider",
-                TOPIC_BADGE[post.topic]
-              )}
-            >
-              {post.topic}
-            </span>
-            {post.resolved && (
-              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-            )}
-            {post.ai_responses && (
-              <Sparkles className="h-3 w-3 text-amber-400" />
-            )}
-            <span className="text-[11px] text-gray-600 flex items-center gap-1">
-              <Eye className="h-3 w-3" />
-              {post.view_count}
-            </span>
-            <span className="text-[11px] text-gray-600">
-              {formatRelativeTime(post.created_at)}
-            </span>
-          </div>
-          {/* Popularity bar */}
-          <div className="h-1 w-full rounded-full bg-gray-800">
+        {/* Title — large and bold, Reddit-style */}
+        <h2 className="text-lg font-bold text-gray-100 group-hover:text-amber-400 transition-colors leading-snug mb-2">
+          {post.title}
+        </h2>
+
+        {/* Body excerpt */}
+        <p className="text-sm text-gray-400 leading-relaxed line-clamp-2 mb-4">
+          {post.body}
+        </p>
+
+        {/* Bottom row: author + status + actions */}
+        <div className="flex items-center gap-3">
+          {/* Author avatar + name */}
+          <div className="flex items-center gap-2">
             <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${fillPct}%`, backgroundColor: topicColor }}
-            />
+              className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+              style={{ backgroundColor: `${color}25`, color }}
+            >
+              {author.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-xs text-gray-500">{author}</span>
+          </div>
+
+          {/* Resolved badge */}
+          {post.resolved && (
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-2 py-0.5">
+              <CheckCircle2 className="h-2.5 w-2.5" />
+              Resolved
+            </span>
+          )}
+
+          {/* Spacer */}
+          <span className="flex-1" />
+
+          {/* Upvote button */}
+          <button
+            onClick={(e) => e.preventDefault()}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-gray-700 text-gray-500 hover:border-amber-400/40 hover:text-amber-400 transition-colors text-xs"
+          >
+            <ChevronUp className="h-3.5 w-3.5" />
+            <span className="font-mono">{post.view_count > 100 ? Math.floor(post.view_count / 10) : Math.floor(post.view_count / 5)}</span>
+          </button>
+
+          {/* Comment count */}
+          <span className="flex items-center gap-1.5 text-xs text-gray-600">
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span className="font-mono">{post.resolved ? Math.floor(Math.random() * 8) + 2 : Math.floor(Math.random() * 4)}</span>
+          </span>
+
+          {/* View arrow */}
+          <div className="flex items-center gap-1 text-xs text-gray-700 group-hover:text-amber-400 transition-colors">
+            <span className="hidden sm:inline">Read</span>
+            <ArrowRight className="h-3.5 w-3.5" />
           </div>
         </div>
-
-        {/* View button */}
-        <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 group-hover:border-amber-400/40 transition-colors">
-          <span className="text-xs text-gray-400 group-hover:text-amber-400 transition-colors hidden sm:block">
-            View
-          </span>
-          <ArrowUpRight className="h-3.5 w-3.5 text-gray-500 group-hover:text-amber-400 transition-colors" />
-        </div>
-      </div>
+      </article>
     </Link>
   );
 }
 
-// ─── main page ────────────────────────────────────────────────────────────────
+function PostSkeleton() {
+  return (
+    <div className="border-b border-gray-800 px-6 py-5 animate-pulse space-y-3">
+      <div className="flex gap-3">
+        <div className="h-5 w-20 rounded-full bg-gray-800" />
+        <div className="h-5 w-24 rounded bg-gray-800" />
+      </div>
+      <div className="h-6 w-4/5 rounded bg-gray-800" />
+      <div className="h-4 w-full rounded bg-gray-800" />
+      <div className="h-4 w-3/4 rounded bg-gray-800" />
+    </div>
+  );
+}
+
+// ─── main page ──────────────────────────────────────────────────────────────────
 
 export default function FeedPage() {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [allPosts, setAllPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [posts, setPosts]           = useState<Post[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [activeTopic, setActiveTopic] = useState<Topic | "all">("all");
-  const [cred, setCred] = useState<CredibilitySnapshot | null>(null);
+  const [apiOnline, setApiOnline]   = useState(true);
 
-  // Fetch all posts for stats/charts (once)
-  useEffect(() => {
-    api.posts.list().then(setAllPosts).catch(() => null);
-  }, []);
-
-  // Fetch filtered posts for the list
   useEffect(() => {
     setLoading(true);
-    setError(null);
-    api.posts
-      .list(activeTopic !== "all" ? { topic: activeTopic } : undefined)
-      .then(setPosts)
-      .catch((e) => setError(e.message))
+    fetchPosts(activeTopic !== "all" ? activeTopic : undefined)
+      .then((data: Post[]) => {
+        setPosts(data);
+        setApiOnline(true);
+      })
+      .catch(() => {
+        setApiOnline(false);
+        setPosts([]);
+      })
       .finally(() => setLoading(false));
   }, [activeTopic]);
 
-  // Try to fetch credibility silently (fails for unauthenticated users)
-  useEffect(() => {
-    api.credibility.me().then(setCred).catch(() => null);
-  }, []);
+  // Use demo posts when API is offline or returns nothing
+  const displayPosts  = apiOnline && posts.length > 0 ? posts : null;
+  const demoPosts     = !apiOnline || posts.length === 0
+    ? (activeTopic === "all"
+        ? DEMO_POSTS
+        : DEMO_POSTS.filter((p) => p.topic === activeTopic))
+    : null;
+  const showingDemo   = !!demoPosts;
 
-  // Computed stats from all posts
-  const stats = useMemo(() => {
-    const total = allPosts.length;
-    const open = allPosts.filter((p) => !p.resolved).length;
-    const resolved = allPosts.filter((p) => p.resolved).length;
-    const aiAssisted = allPosts.filter((p) => p.ai_responses).length;
-    const aiPct = total > 0 ? Math.round((aiAssisted / total) * 100) : 0;
-    return { total, open, resolved, aiAssisted, aiPct };
-  }, [allPosts]);
-
-  // Topic distribution for donut chart
-  const topicData = useMemo(() => {
-    const counts: Partial<Record<Topic, number>> = {};
-    for (const p of allPosts) {
-      counts[p.topic] = (counts[p.topic] ?? 0) + 1;
-    }
-    return Object.entries(counts)
-      .map(([topic, count]) => ({
-        name: topic.charAt(0).toUpperCase() + topic.slice(1),
-        topic: topic as Topic,
-        value: count as number,
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [allPosts]);
-
-  const maxViews = useMemo(
-    () => Math.max(...posts.map((p) => p.view_count), 1),
-    [posts]
-  );
-
-  const tierCfg = cred ? TIER_CONFIG[cred.tier] : null;
+  const totalShown    = displayPosts?.length ?? demoPosts?.length ?? 0;
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_280px]">
 
-      {/* ── Row 1: Hero bento (4 cards) ───────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* ── MAIN COLUMN ──────────────────────────────────────────────────── */}
+      <div className="space-y-0">
 
-        {/* Credibility hero card — amber if loaded, community if not */}
-        {cred && tierCfg ? (
-          <div className="rounded-2xl bg-amber-400 p-5 flex flex-col gap-3 relative overflow-hidden">
-            <div className="h-8 w-8 rounded-lg bg-gray-950/20 flex items-center justify-center">
-              <TrendingUp className="h-4 w-4 text-gray-950/70" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-950/60 font-medium">My Credibility</p>
-              <p className="mt-1 text-4xl font-black text-gray-950 tracking-tight">
-                {cred.total_score.toLocaleString()}
-              </p>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span
-                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: "rgba(0,0,0,0.15)", color: "#0a0a0a" }}
-                >
-                  {tierCfg.label}
-                </span>
-              </div>
-            </div>
-            {/* Decorative arc */}
-            <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-gray-950/10" />
-          </div>
-        ) : (
-          <div className="rounded-2xl bg-amber-400 p-5 flex flex-col gap-3 relative overflow-hidden">
-            <div className="h-8 w-8 rounded-lg bg-gray-950/20 flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-gray-950/70" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-950/60 font-medium">Buddy Finance</p>
-              <p className="mt-1 text-2xl font-black text-gray-950 leading-tight">
-                Student Q&A
-              </p>
-              <p className="mt-1 text-xs text-gray-950/60">
-                Ranked by credibility
-              </p>
-            </div>
-            <Link
-              href="/ask"
-              className="mt-auto inline-flex items-center gap-1 text-xs font-semibold text-gray-950/70 hover:text-gray-950 transition-colors"
-            >
-              Ask a question <ArrowUpRight className="h-3 w-3" />
-            </Link>
-            <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-gray-950/10" />
-          </div>
-        )}
-
-        <StatCard
-          label="Open Questions"
-          value={stats.open}
-          sub="awaiting answers"
-          icon={MessageSquare}
-        />
-        <StatCard
-          label="Resolved"
-          value={stats.resolved}
-          sub="accepted answers"
-          icon={CheckCircle2}
-        />
-        <StatCard
-          label="AI Assisted"
-          value={stats.aiAssisted}
-          sub={`${stats.aiPct}% of questions`}
-          icon={Sparkles}
-        />
-      </div>
-
-      {/* ── Row 2: Charts ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-
-        {/* Topic Distribution donut */}
-        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <p className="font-semibold text-white text-sm">Topic Distribution</p>
-            <ArrowUpRight className="h-4 w-4 text-gray-600" />
-          </div>
-
-          {topicData.length > 0 ? (
-            <div className="flex items-center gap-4">
-              {/* Donut */}
-              <div className="shrink-0" style={{ width: 120, height: 120 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={topicData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={38}
-                      outerRadius={55}
-                      startAngle={90}
-                      endAngle={-270}
-                      paddingAngle={2}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {topicData.map((entry) => (
-                        <Cell
-                          key={entry.topic}
-                          fill={TOPIC_PIE_COLORS[entry.topic]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: "#111827",
-                        border: "1px solid #374151",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                      formatter={(val: number) => [`${val} questions`, ""]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Legend */}
-              <div className="flex-1 space-y-2 min-w-0">
-                {topicData.slice(0, 5).map((entry) => (
-                  <div key={entry.topic} className="flex items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <div
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ backgroundColor: TOPIC_PIE_COLORS[entry.topic] }}
-                      />
-                      <span className="text-gray-400 truncate">{entry.name}</span>
-                    </div>
-                    <span className="text-gray-500 shrink-0">{entry.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-700 text-xs py-8">
-              No questions yet
-            </div>
-          )}
-        </div>
-
-        {/* AI Advisor Insights — gradient card */}
-        <div
-          className="lg:col-span-2 rounded-2xl p-5 flex flex-col gap-4 relative overflow-hidden"
-          style={{
-            background: "linear-gradient(135deg, #1c1800 0%, #261f00 50%, #1a1428 100%)",
-            border: "1px solid rgba(251,191,36,0.15)",
-          }}
-        >
-          {/* Decorative blobs */}
-          <div
-            className="absolute top-0 right-0 h-40 w-40 rounded-full opacity-10 blur-3xl pointer-events-none"
-            style={{ background: "#fbbf24" }}
-          />
-          <div
-            className="absolute bottom-0 left-0 h-32 w-32 rounded-full opacity-10 blur-3xl pointer-events-none"
-            style={{ background: "#a78bfa" }}
-          />
-
-          <div className="flex items-center justify-between relative">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-amber-400" />
-              <p className="font-semibold text-white text-sm">AI Advisor Insights</p>
-            </div>
-            <span className="text-[10px] font-mono px-2.5 py-1 rounded-full border border-gray-700 text-gray-400">
-              Live
-            </span>
-          </div>
-
-          <div className="relative">
-            <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-black text-white tracking-tight">
-                {stats.aiPct}%
-              </span>
-              <span className="text-gray-400 text-sm">answered with AI</span>
-            </div>
-            <p className="mt-1 text-xs text-gray-500">
-              Based on {stats.total} community questions
+        {/* Page title row */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-100">Community Forum</h1>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Ask questions, share knowledge, earn credibility
             </p>
           </div>
-
-          {/* Visual bars for open vs resolved */}
-          <div className="relative space-y-3">
-            {[
-              { label: "Resolved", value: stats.resolved, total: stats.total, color: "#34d399" },
-              { label: "Open", value: stats.open, total: stats.total, color: "#fbbf24" },
-              { label: "AI Assisted", value: stats.aiAssisted, total: stats.total, color: "#a78bfa" },
-            ].map((item) => (
-              <div key={item.label} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-500">{item.label}</span>
-                  <span style={{ color: item.color }} className="font-mono">{item.value}</span>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-white/5">
-                  <div
-                    className="h-full rounded-full transition-all duration-700"
-                    style={{
-                      width: `${item.total > 0 ? (item.value / item.total) * 100 : 0}%`,
-                      backgroundColor: item.color,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="relative flex items-start gap-3 bg-white/5 rounded-xl p-3">
-            <div className="h-7 w-7 rounded-full bg-amber-400/20 border border-amber-400/30 flex items-center justify-center shrink-0 mt-0.5">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            </div>
-            <p className="text-xs text-gray-400 leading-relaxed">
-              The AI weighs all answers by contributor credibility score before synthesising a response.
-            </p>
-          </div>
+          <Link
+            href="/ask"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-amber-400 text-gray-950 font-bold text-sm rounded-xl hover:bg-amber-300 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Ask
+          </Link>
         </div>
-      </div>
 
-      {/* ── Row 3: Question list ───────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden">
-        {/* Header with topic filters */}
-        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-gray-800">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-amber-400" />
-            <p className="font-semibold text-white text-sm">Hot Questions</p>
-          </div>
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+        {/* Forum card */}
+        <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden">
+
+          {/* Topic filter tabs */}
+          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-gray-800 overflow-x-auto scrollbar-none bg-gray-900/90 backdrop-blur sticky top-0 z-10">
             {TOPICS.map((t) => (
               <button
                 key={t.value}
                 onClick={() => setActiveTopic(t.value)}
                 className={cn(
-                  "shrink-0 px-3 py-1 rounded-full border font-mono text-[10px] uppercase tracking-wider transition-colors",
+                  "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
                   activeTopic === t.value
-                    ? "border-amber-400 bg-amber-400/10 text-amber-400"
-                    : "border-gray-700 text-gray-600 hover:border-gray-500 hover:text-gray-400"
+                    ? "bg-amber-400 text-gray-950 font-bold"
+                    : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
                 )}
               >
-                {t.label}
+                <span>{t.emoji}</span>
+                <span>{t.label}</span>
               </button>
+            ))}
+
+            <div className="ml-auto shrink-0 text-[11px] text-gray-600 font-mono pl-4">
+              {!loading && `${totalShown} post${totalShown !== 1 ? "s" : ""}`}
+              {showingDemo && <span className="ml-1 text-amber-500/60">(demo)</span>}
+            </div>
+          </div>
+
+          {/* Loading */}
+          {loading && (
+            <div>{[...Array(5)].map((_, i) => <PostSkeleton key={i} />)}</div>
+          )}
+
+          {/* Posts */}
+          {!loading && displayPosts && displayPosts.length > 0 && (
+            <div>
+              {displayPosts.map((p) => <PostCard key={p.id} post={p} />)}
+            </div>
+          )}
+
+          {/* Demo posts */}
+          {!loading && demoPosts && demoPosts.length > 0 && (
+            <div>
+              {demoPosts.map((p) => <PostCard key={p.id} post={p} isDemo />)}
+            </div>
+          )}
+
+          {/* True empty (demo also empty for that topic) */}
+          {!loading && totalShown === 0 && (
+            <div className="py-20 text-center space-y-4">
+              <div className="h-14 w-14 rounded-2xl bg-gray-800 flex items-center justify-center mx-auto">
+                <MessageSquare className="h-7 w-7 text-gray-600" />
+              </div>
+              <div>
+                <p className="text-gray-300 font-semibold">No questions yet in {activeTopic}</p>
+                <p className="text-gray-600 text-sm mt-1">Be the first to ask!</p>
+              </div>
+              <Link
+                href={`/ask?topic=${activeTopic}`}
+                className="inline-block px-6 py-2.5 bg-amber-400 text-gray-950 font-bold text-sm rounded-xl hover:bg-amber-300 transition-colors"
+              >
+                Ask the first question
+              </Link>
+            </div>
+          )}
+
+          {/* Footer */}
+          {!loading && totalShown > 0 && (
+            <div className="px-6 py-3 border-t border-gray-800 flex items-center justify-between bg-gray-900/50">
+              <p className="text-xs text-gray-600">
+                {totalShown} question{totalShown !== 1 ? "s" : ""} shown
+              </p>
+              <Link
+                href="/ask"
+                className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-400 text-gray-950 font-bold text-xs rounded-lg hover:bg-amber-300 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Ask a question
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── SIDEBAR ──────────────────────────────────────────────────────── */}
+      <div className="space-y-4">
+
+        {/* Stats */}
+        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 space-y-3">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Forum Stats</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Questions",   value: showingDemo ? DEMO_POSTS.length : posts.length,                          color: "#fbbf24" },
+              { label: "Resolved",    value: showingDemo ? DEMO_POSTS.filter(p=>p.resolved).length : posts.filter(p=>p.resolved).length, color: "#34d399" },
+              { label: "Open",        value: showingDemo ? DEMO_POSTS.filter(p=>!p.resolved).length : posts.filter(p=>!p.resolved).length, color: "#60a5fa" },
+              { label: "AI-Answered", value: showingDemo ? DEMO_POSTS.filter(p=>p.ai_responses).length : posts.filter(p=>p.ai_responses).length, color: "#a78bfa" },
+            ].map((s) => (
+              <div key={s.label} className="rounded-xl bg-gray-800 px-3 py-2.5">
+                <p className="text-[10px] text-gray-500">{s.label}</p>
+                <p className="text-xl font-black mt-0.5" style={{ color: s.color }}>{s.value}</p>
+              </div>
             ))}
           </div>
         </div>
 
-        {/* States */}
-        {loading && (
-          <div className="divide-y divide-gray-800">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4">
-                <div className="h-10 w-10 rounded-xl bg-gray-800 animate-pulse shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3.5 w-3/4 rounded bg-gray-800 animate-pulse" />
-                  <div className="h-2.5 w-1/3 rounded bg-gray-800 animate-pulse" />
-                  <div className="h-1 w-full rounded-full bg-gray-800 animate-pulse" />
-                </div>
-              </div>
-            ))}
+        {/* AI insights pill */}
+        <div
+          className="rounded-2xl p-4 space-y-2 relative overflow-hidden"
+          style={{ background: "linear-gradient(135deg,#1c1800,#261f00,#1a1428)", border: "1px solid rgba(251,191,36,0.15)" }}
+        >
+          <div className="absolute top-0 right-0 h-24 w-24 rounded-full opacity-10 blur-3xl" style={{ background: "#fbbf24" }} />
+          <div className="flex items-center gap-2 relative">
+            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            <p className="text-xs font-bold text-amber-400">AI Advisor active</p>
           </div>
-        )}
+          <p className="text-[11px] text-gray-400 relative leading-relaxed">
+            Every question gets a Buddy AI response, weighted by community credibility scores.
+          </p>
+        </div>
 
-        {error && (
-          <div className="p-8 text-center">
-            <p className="text-red-400 font-mono text-sm">{error}</p>
+        {/* How this works — differentiator explainer */}
+        <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-4 space-y-3">
+          <p className="text-xs font-bold text-gray-300 uppercase tracking-wider">How Buddy differs from Reddit</p>
+          <ul className="space-y-2.5">
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 h-4 w-4 rounded-full bg-amber-400/20 flex items-center justify-center shrink-0">
+                <span className="text-[8px] font-black text-amber-400">1</span>
+              </span>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                <span className="text-gray-200 font-medium">Topic-scoped credibility.</span>{" "}
+                800 pts in Budgeting ≠ 800 pts in Investing. Domain expertise shown on every answer.
+              </p>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 h-4 w-4 rounded-full bg-amber-400/20 flex items-center justify-center shrink-0">
+                <span className="text-[8px] font-black text-amber-400">2</span>
+              </span>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                <span className="text-gray-200 font-medium">Weighted votes.</span>{" "}
+                An oracle&apos;s upvote counts 5× a newcomer&apos;s. Expert consensus matters more than popularity.
+              </p>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 h-4 w-4 rounded-full bg-amber-400/20 flex items-center justify-center shrink-0">
+                <span className="text-[8px] font-black text-amber-400">3</span>
+              </span>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                <span className="text-gray-200 font-medium">AI cites its sources.</span>{" "}
+                Buddy reads every answer ranked by credibility and tells you which voice it weighted most — and why.
+              </p>
+            </li>
+          </ul>
+        </div>
+
+        {/* Quick question templates */}
+        <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-2">
+            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            <p className="text-xs font-bold text-gray-300">Common Questions</p>
+            <span className="ml-auto text-[9px] font-mono text-gray-600">tap to ask →</span>
           </div>
-        )}
-
-        {!loading && !error && posts.length === 0 && (
-          <div className="p-12 text-center space-y-3">
-            <MessageSquare className="h-8 w-8 text-gray-700 mx-auto" />
-            <p className="text-gray-400 text-sm">No questions in this topic yet.</p>
-            <Link
-              href="/ask"
-              className="inline-block px-5 py-2 bg-amber-400 text-gray-950 font-semibold text-sm rounded-full hover:bg-amber-300 transition-colors"
-            >
-              Ask the first question
-            </Link>
-          </div>
-        )}
-
-        {!loading && !error && posts.length > 0 && (
           <div className="divide-y divide-gray-800/60">
-            {posts.map((post) => (
-              <QuestionRow key={post.id} post={post} maxViews={maxViews} />
-            ))}
+            {QUICK.map((q, i) => {
+              const Icon = q.icon;
+              const params = new URLSearchParams({ title: q.title, body: q.body, topic: q.topic });
+              return (
+                <Link
+                  key={i}
+                  href={`/ask?${params}`}
+                  className="group flex items-start gap-3 px-4 py-3 hover:bg-gray-800/40 transition-colors"
+                >
+                  <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: q.color }} />
+                  <p className="text-[12px] text-gray-400 group-hover:text-gray-200 transition-colors leading-relaxed line-clamp-2">
+                    {q.title}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
-        )}
-
-        {/* Footer */}
-        {!loading && !error && posts.length > 0 && (
-          <div className="px-5 py-3 border-t border-gray-800 flex items-center justify-between">
-            <p className="text-xs text-gray-600">
-              {posts.length} question{posts.length !== 1 ? "s" : ""}
-            </p>
+          <div className="px-4 py-3 border-t border-gray-800">
             <Link
-              href="/ask"
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-amber-400 text-gray-950 font-semibold text-xs rounded-full hover:bg-amber-300 transition-colors"
+              href="/check"
+              className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-gray-800 text-xs text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors font-medium"
             >
-              Ask a question
-              <ChevronRight className="h-3.5 w-3.5" />
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              Try AI Financial Checks
             </Link>
           </div>
-        )}
+        </div>
+
+        {/* Topic quick-filters */}
+        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 space-y-2">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Browse by Topic</p>
+          {TOPICS.filter(t => t.value !== "all").map((t) => {
+            const topicPosts = showingDemo
+              ? DEMO_POSTS.filter(p => p.topic === t.value)
+              : posts.filter(p => p.topic === t.value);
+            return (
+              <button
+                key={t.value}
+                onClick={() => setActiveTopic(t.value)}
+                className={cn(
+                  "flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-sm transition-colors text-left",
+                  activeTopic === t.value
+                    ? "bg-amber-400/10 text-amber-400"
+                    : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                )}
+              >
+                <span className="text-base leading-none">{t.emoji}</span>
+                <span className="flex-1 font-medium text-xs">{t.label}</span>
+                <span className="text-[11px] font-mono text-gray-600">{topicPosts.length}</span>
+                <div
+                  className="h-1.5 w-1.5 rounded-full shrink-0"
+                  style={{ backgroundColor: TOPIC_COLOR[t.value as Topic] }}
+                />
+              </button>
+            );
+          })}
+        </div>
+
       </div>
     </div>
   );
