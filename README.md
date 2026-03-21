@@ -4,7 +4,7 @@
 
 A student financial platform where **credibility is currency**. Ask questions, share knowledge, earn trust — and the AI already knows who to believe.
 
-**Live:** https://quackathon-2026.vercel.app
+**Live:** https://buddy-sand-six.vercel.app
 
 ---
 
@@ -145,23 +145,39 @@ If these secrets are not set, deploy jobs will be skipped safely, while CI still
 
 ---
 
-## Vercel Deployment
+## Deployments
 
-The frontend deploys to Vercel automatically on push to `main`. The `vercel.json` at the repo root tells Vercel the Next.js app lives in `frontend/`.
-
-### Required environment variables
-
-Set these in **Vercel Dashboard → Project → Settings → Environment Variables**:
-
-| Variable | Value | Notes |
+| Service | Platform | URL |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://ewyenqtrkdzgckrncwvb.supabase.co` | Public — safe to expose |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_mYH-9p1vW-PHnVwXTPtmLQ__WPCv1SZ` | Public — safe to expose |
-| `ANTHROPIC_API_KEY` | from console.anthropic.com | **Secret** — powers the AI advisor |
-| `SUPABASE_SERVICE_ROLE_KEY` | from Supabase → Settings → API | **Secret** — needed to write AI responses to DB |
-| `NEXT_PUBLIC_API_URL` | *(leave empty or omit)* | Backend not deployed; frontend falls back to demo mode |
+| Frontend (Next.js) | Vercel | https://buddy-sand-six.vercel.app |
+| Backend (FastAPI) | Render | connect via `render.yaml` (see below) |
 
-> **Without `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY`** the AI advisor will return a 500 error on live posts (demo posts still work client-side). Without `NEXT_PUBLIC_SUPABASE_*` keys the build itself will succeed but auth and post fetching will fail at runtime.
+### Vercel — Frontend
+
+`vercel.json` at the repo root points Vercel at the `frontend/` subdirectory. Set these in **Vercel Dashboard → Project → Settings → Environment Variables**:
+
+| Variable | Notes |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://ewyenqtrkdzgckrncwvb.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable key — safe to expose |
+| `ANTHROPIC_API_KEY` | **Secret** — powers `/api/advisor` serverless route |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Secret** — lets advisor cache responses to DB |
+| `NEXT_PUBLIC_API_URL` | URL of your Render backend once deployed |
+
+### Render — Backend
+
+> **Why not Netlify?** Netlify runs serverless functions only. FastAPI with uvicorn is a persistent server and cannot run on Netlify.
+
+`render.yaml` at the repo root defines the backend web service. To deploy:
+
+1. Go to [render.com](https://render.com) → New → Blueprint
+2. Connect this repo — Render will detect `render.yaml` automatically
+3. Fill in the secret env vars marked `sync: false` in the Render dashboard:
+   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`
+   - `ANTHROPIC_API_KEY`
+   - `PINECONE_API_KEY` (optional — RAG is currently stubbed)
+   - `REDIS_URL` (optional — from Upstash free tier)
+4. Once deployed, paste the Render URL into Vercel's `NEXT_PUBLIC_API_URL` env var
 
 ---
 
