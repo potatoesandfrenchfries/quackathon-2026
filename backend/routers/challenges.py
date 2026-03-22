@@ -12,7 +12,7 @@ import anthropic
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from core.auth import CurrentUserId
+from core.auth import CurrentUserId, OptionalUserId
 from core.config import settings
 from core.database import get_db
 from supabase import Client
@@ -37,8 +37,12 @@ class CheckInPayload(BaseModel):
 # ─── List & Browse ───────────────────────────────────────────────────────────
 
 @router.get("/")
-def list_challenges(db: Client = Depends(get_db)):
-    """All active challenges sorted by participant count (most popular first)."""
+def list_challenges(user_id: OptionalUserId, db: Client = Depends(get_db)):
+    """
+    All active challenges sorted by participant count.
+    When authenticated, each challenge includes my_participation so the
+    frontend can show join state without a separate request.
+    """
     result = (
         db.table("challenges")
         .select("*")
@@ -46,7 +50,26 @@ def list_challenges(db: Client = Depends(get_db)):
         .order("participant_count", desc=True)
         .execute()
     )
-    return result.data
+    challenges = result.data or []
+
+    if not user_id or not challenges:
+        return [{"my_participation": None, **c} for c in challenges]
+
+    # Fetch this user's participation for all challenges in one query
+    ids = [c["id"] for c in challenges]
+    parts_result = (
+        db.table("challenge_participants")
+        .select("*")
+        .eq("user_id", user_id)
+        .in_("challenge_id", ids)
+        .execute()
+    )
+    parts_by_challenge = {p["challenge_id"]: p for p in (parts_result.data or [])}
+
+    return [
+        {**c, "my_participation": parts_by_challenge.get(c["id"])}
+        for c in challenges
+    ]
 
 
 @router.get("/recommended")
@@ -116,8 +139,11 @@ Return ONLY a JSON array (no prose):
 
 @router.get("/mine")
 def my_challenges(user_id: CurrentUserId, db: Client = Depends(get_db)):
-    """Challenges the current user has joined."""
-    result = (
+    """
+    Challenges the current user has joined.
+    Returns Challenge[] with my_participation embedded — same shape as GET /.
+    """
+    parts_result = (
         db.table("challenge_participants")
         .select("*, challenges(*)")
         .eq("user_id", user_id)
@@ -125,7 +151,13 @@ def my_challenges(user_id: CurrentUserId, db: Client = Depends(get_db)):
         .order("joined_at", desc=True)
         .execute()
     )
-    return result.data
+    rows = parts_result.data or []
+    # Reshape: flatten challenge fields + embed participation as my_participation
+    return [
+        {**row["challenges"], "my_participation": {k: v for k, v in row.items() if k != "challenges"}}
+        for row in rows
+        if row.get("challenges")
+    ]
 
 
 @router.get("/{challenge_id}")

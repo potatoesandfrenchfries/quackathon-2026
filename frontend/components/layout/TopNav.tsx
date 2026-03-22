@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, PenLine, Trophy, Users, Search, Bell } from "lucide-react";
+import { LayoutGrid, PenLine, Trophy, Users, Search, Bell, Flame } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Dashboard",  href: "/dashboard",  icon: LayoutGrid },
   { label: "Community",  href: "/feed",        icon: Users      },
-  { label: "Ask",        href: "/ask",          icon: PenLine    },
+  { label: "Ask",        href: "/ask",         icon: PenLine    },
+  { label: "Challenges", href: "/challenges",  icon: Flame      },
   { label: "Leaderboard",href: "/leaderboard", icon: Trophy     },
 ];
 

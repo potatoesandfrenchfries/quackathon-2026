@@ -245,6 +245,31 @@ function ChallengeSkeleton() {
   );
 }
 
+// ─── join toast ───────────────────────────────────────────────────────────────
+
+function JoinToast({ joinNumber, title, onDone }: { joinNumber: number; title: string; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3500);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+      <div className="flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-gray-900 border border-amber-400/30 shadow-2xl shadow-black/60">
+        <div className="h-9 w-9 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center shrink-0">
+          <Trophy className="h-4 w-4 text-amber-400" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-gray-100">
+            You&apos;re <span className="text-amber-400">#{joinNumber}</span> to join!
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[220px]">{title}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── main page ────────────────────────────────────────────────────────────────
 
 type Tab = "all" | "mine" | "recommended";
@@ -255,6 +280,7 @@ export default function ChallengesPage() {
   const [loading, setLoading] = useState(true);
   const [apiOnline, setApiOnline] = useState(true);
   const [joining, setJoining] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ joinNumber: number; title: string } | null>(null);
 
   const loadChallenges = useCallback(async (t: Tab) => {
     setLoading(true);
@@ -277,9 +303,10 @@ export default function ChallengesPage() {
 
   async function handleJoin(id: string) {
     setJoining(id);
+    const challenge = challenges.find((c) => c.id === id);
     try {
       const result = await api.challenges.join(id);
-      // Optimistically update the challenge in state
+      const joinNumber = result.join_number ?? (challenge?.participant_count ?? 0) + 1;
       setChallenges((prev) =>
         prev.map((c) =>
           c.id === id
@@ -287,10 +314,10 @@ export default function ChallengesPage() {
                 ...c,
                 participant_count: c.participant_count + 1,
                 my_participation: {
-                  id: "temp",
+                  id: result.id ?? "temp",
                   challenge_id: id,
                   user_id: "",
-                  join_number: result.join_number,
+                  join_number: joinNumber,
                   status: "active",
                   checkin_streak: 0,
                   last_checkin_at: null,
@@ -301,6 +328,7 @@ export default function ChallengesPage() {
             : c
         )
       );
+      setToast({ joinNumber, title: challenge?.title ?? "" });
     } catch {
       // silently fail — user sees no change
     } finally {
@@ -435,6 +463,15 @@ export default function ChallengesPage() {
             </button>
           )}
         </div>
+      )}
+
+      {/* Join toast */}
+      {toast && (
+        <JoinToast
+          joinNumber={toast.joinNumber}
+          title={toast.title}
+          onDone={() => setToast(null)}
+        />
       )}
     </div>
   );
