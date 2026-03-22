@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { Challenge, ChallengeParticipant, Topic } from "@/types/database";
+import type { Challenge, Topic } from "@/types/database";
 
 // ─── topic config ─────────────────────────────────────────────────────────────
 
