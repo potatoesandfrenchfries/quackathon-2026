@@ -450,7 +450,7 @@ export default function ChallengesPage() {
             <p className="text-gray-600 text-sm mt-1">
               {tab === "mine"
                 ? "Browse all challenges and join one to get started"
-                : "Check back soon — new challenges are added regularly"}
+                : "Check back soon — new challenges will be added with more context!"}
             </p>
           </div>
           {tab === "mine" && (
