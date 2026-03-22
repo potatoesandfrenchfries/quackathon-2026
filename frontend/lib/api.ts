@@ -113,7 +113,7 @@ export const api = {
   // Tools (instant AI checkers)
   // ----------------------------------------------------------------
   tools: {
-    check: (tool: "grocery" | "purchase" | "investment", inputs: Record<string, string>) =>
+    check: (tool: "grocery" | "purchase" | "investment", inputs: Record<string, string | string[] | boolean>) =>
       apiFetch<Record<string, unknown>>("/tools/check", {
         method: "POST",
         body: JSON.stringify({ tool, inputs }),
