@@ -238,13 +238,18 @@ buddy/
 │   │   ├── answers.py                ← /answers/* — responses
 │   │   ├── votes.py                  ← /votes/* — credibility-weighted voting
 │   │   ├── credibility.py            ← /credibility/* — scores, history, leaderboard
+│   │   ├── challenges.py             ← /challenges/* — financial challenges
+│   │   ├── goals.py                  ← /goals/* — savings goals
+│   │   ├── tools.py                  ← /tools/* — utility endpoints
 │   │   └── rag.py                    ← /rag/* — ingest, retrieve, status
 │   ├── services/
 │   │   ├── credibility_engine.py     ← Single source of truth for all cred mutations
+│   │   ├── decay.py                  ← Credibility decay logic
 │   │   ├── rag.py                    ← Pinecone vector search + Claude Haiku sentiment
 │   │   └── document_sources.py       ← UK financial document fetcher + chunker
 │   ├── agents/
-│   │   └── advisor.py                ← AI Advisor Agent (Claude)
+│   │   ├── advisor.py                ← AI Advisor Agent (Claude)
+│   │   └── fact_checker.py           ← AI Fact Checker Agent
 │   └── tests/
 │       ├── conftest.py               ← Env var setup for pytest
 │       ├── test_credibility_engine.py
@@ -256,18 +261,51 @@ buddy/
     ├── vitest.config.ts
     ├── app/
     │   ├── page.tsx                  ← Landing page
+    │   ├── login/page.tsx            ← Magic link login
     │   ├── onboarding/page.tsx       ← 3-step onboarding wizard
-    │   ├── (auth)/
-    │   │   ├── login/page.tsx        ← Magic link login
+    │   ├── auth/
     │   │   └── callback/route.ts     ← Supabase auth callback
-    │   └── feed/                     ← (to be built) Question feed
+    │   ├── api/
+    │   │   ├── advisor/route.ts      ← Serverless AI advisor endpoint
+    │   │   └── seed/route.ts         ← Demo data seeding endpoint
+    │   └── (app)/                    ← Authenticated app shell
+    │       ├── layout.tsx            ← App layout with sidebar/nav
+    │       ├── dashboard/page.tsx    ← Main dashboard
+    │       ├── feed/
+    │       │   ├── page.tsx          ← Question feed
+    │       │   └── [id]/page.tsx     ← Individual post view
+    │       ├── ask/page.tsx          ← Ask a question
+    │       ├── leaderboard/page.tsx  ← Credibility leaderboard
+    │       ├── profile/page.tsx      ← User profile
+    │       ├── challenges/page.tsx   ← Financial challenges
+    │       ├── goals/page.tsx        ← Savings goals
+    │       ├── budget/page.tsx       ← Budget tracker
+    │       ├── transactions/page.tsx ← Transaction history
+    │       ├── accounts/page.tsx     ← Connected accounts
+    │       ├── check/page.tsx        ← Fact-check tool
+    │       └── origin/page.tsx       ← Origin story / about
     ├── components/
-    │   └── CredibilityBadge.tsx      ← Score badge with tier colours
+    │   ├── AnonAuthProvider.tsx      ← Anonymous auth context
+    │   ├── CredibilityBadge.tsx      ← Score badge with tier colours
+    │   ├── layout/
+    │   │   ├── AppShell.tsx          ← App layout wrapper
+    │   │   ├── Sidebar.tsx           ← Navigation sidebar
+    │   │   └── TopNav.tsx            ← Top navigation bar
+    │   └── ui/
+    │       ├── Badge.tsx
+    │       ├── Button.tsx
+    │       ├── Card.tsx
+    │       ├── CategoryChip.tsx
+    │       ├── Modal.tsx
+    │       ├── ProgressBar.tsx
+    │       └── Skeleton.tsx
     ├── lib/
     │   ├── api.ts                    ← Typed backend API client
+    │   ├── utils.ts                  ← Shared utility functions
     │   └── supabase/
     │       ├── client.ts             ← Browser client
-    │       └── server.ts             ← Server component client
+    │       ├── server.ts             ← Server component client
+    │       └── posts.ts              ← Post-related Supabase queries
     ├── middleware.ts                  ← Session refresh + route protection
     └── types/
         └── database.ts               ← TypeScript types matching DB schema

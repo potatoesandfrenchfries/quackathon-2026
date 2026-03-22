@@ -5,7 +5,9 @@
       "Bash(npx tsc:*)",
       "Bash(npm install:*)",
       "Bash(.venv/Scripts/python.exe -c \":*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(ls -1 /c/Users/Kanish/Documents/GitHub/quackathon-2026/frontend/app/\\\\\\(app\\\\\\)/)",
+      "Bash(find /c/Users/Kanish/Documents/GitHub/quackathon-2026 -type f \\\\\\(-name *study* -o -name *Study* \\\\\\))"
     ]
   }
 }
