@@ -31,6 +31,21 @@ Respond ONLY with valid JSON matching exactly this structure:
 _PURCHASE_SYSTEM = """You are Buddy, a UK student finance guide.
 Evaluate whether a purchase is worth it long-term for a student.
 Consider: total cost of ownership, depreciation, opportunity cost, alternatives.
+
+ETHICS SCORING RULES:
+- ethics_score is always an integer 0-10. Never omit it.
+  0-4: notable concerns (e.g. fast fashion, known poor labour conditions, high-carbon production)
+  5-6: neutral / no strong signal either way
+  7-8: positive (e.g. durable/repairable, fair-trade certified, secondhand, long lifespan)
+  9-10: exemplary (certified B-corp, organic + fair labour, circular economy product)
+- ethics_summary: 1-2 plain-English peer-tone sentences on why you gave that score. Never preachy.
+
+VERDICT RULES WHEN user_values IS NON-EMPTY (see user message):
+- If the user's declared values align well with the product's ethics AND ethics_score >= 7,
+  you MAY upgrade the verdict by one step (borderline -> worth_it, not_worth_it -> borderline).
+  Never jump not_worth_it -> worth_it in a single step if price exceeds 2x comparable alternatives.
+- If you upgrade, reflect it in the headline (e.g. "Sustainable choice justifies the premium").
+
 Respond ONLY with valid JSON matching exactly this structure:
 {
   "verdict": "worth_it" | "borderline" | "not_worth_it",
@@ -40,15 +55,28 @@ Respond ONLY with valid JSON matching exactly this structure:
   "tip": "<one actionable recommendation>",
   "confidence": <integer 0-100>,
   "disclaimer": "This is educational guidance only, not financial advice.",
-  "real_world_note": null
-}
-real_world_note: if this purchase has a notable ethical or sustainability angle (e.g. fast fashion,
-known poor labour practices, secondhand available, high carbon footprint) add ONE plain-English
-peer-tone sentence. Otherwise null. Never preachy."""
+  "ethics_score": <integer 0-10>,
+  "ethics_summary": "<1-2 sentences>"
+}"""
 
 _INVESTMENT_SYSTEM = """You are Buddy, a UK student finance guide.
 Evaluate whether an investment's expected return is realistic for the UK market and suitable for a student.
 Consider typical market returns, risk, and student-specific constraints (limited capital, short horizon).
+
+ETHICS SCORING RULES:
+- ethics_score is always an integer 0-10. Never omit it.
+  0-4: notable concerns (e.g. heavy fossil fuel exposure, crypto energy consumption, arms/tobacco)
+  5-6: neutral / mixed ESG profile
+  7-8: generally responsible (e.g. diversified index with partial ESG screening)
+  9-10: explicitly ESG-focused fund, green bonds, community investment
+- ethics_summary: 1-2 plain-English peer-tone sentences on the ESG profile and any notable concern or benefit.
+
+VERDICT RULES WHEN esg_preference IS true (see user message):
+- If the investment has high ESG risk (crypto, individual fossil fuel stocks, arms), you MAY
+  downgrade realistic -> optimistic to reflect full-cost thinking. Explain in the headline.
+- If the investment has a strong ESG profile (ethics_score >= 8) and is otherwise borderline
+  optimistic, you MAY upgrade it to realistic. Never upgrade an unrealistic return.
+
 Respond ONLY with valid JSON matching exactly this structure:
 {
   "verdict": "realistic" | "optimistic" | "unrealistic",
@@ -59,11 +87,9 @@ Respond ONLY with valid JSON matching exactly this structure:
   "tip": "<one actionable recommendation>",
   "confidence": <integer 0-100>,
   "disclaimer": "Educational guidance only. Past returns do not guarantee future results.",
-  "real_world_note": null
-}
-real_world_note: if an ESG/ethical fund alternative exists for this investment type, or if
-there's a notable ethical concern (e.g. crypto energy use, fossil fuel exposure), add ONE
-plain-English peer-tone sentence. Otherwise null."""
+  "ethics_score": <integer 0-10>,
+  "ethics_summary": "<1-2 sentences>"
+}"""
 
 TOOL_CONFIGS: dict[str, dict] = {
     "grocery": {
@@ -81,7 +107,17 @@ TOOL_CONFIGS: dict[str, dict] = {
             f"Purchase: {i.get('item', '')}\n"
             f"Price: £{i.get('price', '')}\n"
             f"Usage context: {i.get('context', '')}\n"
-            f"Timeframe considering: {i.get('timeframe', 'not specified')}"
+            f"Timeframe considering: {i.get('timeframe', 'not specified')}\n"
+            + (
+                "User values: "
+                + ", ".join(
+                    v for v in i.get("user_values", [])
+                    if v in {"sustainability", "fair_labour", "low_carbon", "secondhand_circular"}
+                )
+                + "\nApply the VERDICT RULES for user_values described in the system prompt."
+                if i.get("user_values")
+                else "User values: none declared"
+            )
         ),
     },
     "investment": {
@@ -90,7 +126,8 @@ TOOL_CONFIGS: dict[str, dict] = {
             f"Investment type: {i.get('investment_type', '')}\n"
             f"Expected annual return: {i.get('expected_return', '')}%\n"
             f"Amount considering: £{i.get('amount', '')}\n"
-            f"Time horizon: {i.get('duration', '')} years"
+            f"Time horizon: {i.get('duration', '')} years\n"
+            f"ESG preference: {'yes — apply ESG verdict rules from system prompt' if i.get('esg_preference') else 'no'}"
         ),
     },
 }
@@ -113,7 +150,7 @@ async def check(
     try:
         response = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=512,
+            max_tokens=700,
             system=cfg["system"],
             messages=[{"role": "user", "content": user_msg}],
         )

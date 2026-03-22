@@ -35,7 +35,8 @@ interface PurchaseResult {
   tip: string;
   confidence: number;
   disclaimer: string;
-  real_world_note?: string | null;
+  ethics_score: number;
+  ethics_summary: string;
 }
 
 interface InvestmentResult {
@@ -47,7 +48,8 @@ interface InvestmentResult {
   tip: string;
   confidence: number;
   disclaimer: string;
-  real_world_note?: string | null;
+  ethics_score: number;
+  ethics_summary: string;
 }
 
 // ─── config ────────────────────────────────────────────────────────────────
@@ -97,6 +99,20 @@ const RISK_COLORS: Record<string, string> = {
   high: "#fb923c",
   very_high: "#f87171",
 };
+
+const ETHICS_CONFIG = [
+  { max: 4,  label: "Concerns",  color: "#f87171", bg: "bg-red-400/10 border-red-400/30" },
+  { max: 6,  label: "Neutral",   color: "#fbbf24", bg: "bg-amber-400/10 border-amber-400/30" },
+  { max: 8,  label: "Ethical",   color: "#34d399", bg: "bg-emerald-400/10 border-emerald-400/30" },
+  { max: 10, label: "Exemplary", color: "#10b981", bg: "bg-emerald-500/10 border-emerald-500/30" },
+] as const;
+
+const USER_VALUE_OPTIONS = [
+  { id: "sustainability",        label: "Sustainability" },
+  { id: "fair_labour",           label: "Fair labour practices" },
+  { id: "low_carbon",            label: "Low carbon footprint" },
+  { id: "secondhand_circular",   label: "Secondhand / circular" },
+];
 
 // ─── form components ────────────────────────────────────────────────────────
 
@@ -150,6 +166,21 @@ function ConfidenceBar({ value }: { value: number }) {
   );
 }
 
+function EthicsScore({ score, summary }: { score: number; summary: string }) {
+  const tier = ETHICS_CONFIG.find((t) => score <= t.max) ?? ETHICS_CONFIG[3];
+  return (
+    <div className="space-y-1.5">
+      <span
+        className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold", tier.bg)}
+        style={{ color: tier.color }}
+      >
+        ♻ Ethics {score}/10 — {tier.label}
+      </span>
+      <p className="text-xs text-gray-400 leading-relaxed">{summary}</p>
+    </div>
+  );
+}
+
 function ResultRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1">
@@ -170,7 +201,7 @@ function GroceryResult({ result }: { result: GroceryResult }) {
 
 function PurchaseResult({ result }: { result: PurchaseResult }) {
   return (
-    <ResultCard headline={result.headline} verdict={result.verdict} confidence={result.confidence} disclaimer={result.disclaimer} realWorldNote={result.real_world_note}>
+    <ResultCard headline={result.headline} verdict={result.verdict} confidence={result.confidence} disclaimer={result.disclaimer} ethicsScore={result.ethics_score} ethicsSummary={result.ethics_summary}>
       <ResultRow label="Long-term cost analysis" value={result.long_term_cost} />
       <ResultRow label="Alternatives" value={result.alternatives} />
       <ResultRow label="Recommendation" value={result.tip} />
@@ -181,7 +212,7 @@ function PurchaseResult({ result }: { result: PurchaseResult }) {
 function InvestmentResult({ result }: { result: InvestmentResult }) {
   const riskColor = RISK_COLORS[result.risk_level] ?? "#6b7280";
   return (
-    <ResultCard headline={result.headline} verdict={result.verdict} confidence={result.confidence} disclaimer={result.disclaimer} realWorldNote={result.real_world_note}>
+    <ResultCard headline={result.headline} verdict={result.verdict} confidence={result.confidence} disclaimer={result.disclaimer} ethicsScore={result.ethics_score} ethicsSummary={result.ethics_summary}>
       <ResultRow label="Typical returns" value={result.typical_return} />
       <div className="space-y-1">
         <p className="font-mono text-[10px] uppercase tracking-widest text-gray-500">Risk level</p>
@@ -200,14 +231,16 @@ function ResultCard({
   verdict,
   confidence,
   disclaimer,
-  realWorldNote,
+  ethicsScore,
+  ethicsSummary,
   children,
 }: {
   headline: string;
   verdict: string;
   confidence: number;
   disclaimer: string;
-  realWorldNote?: string | null;
+  ethicsScore?: number;
+  ethicsSummary?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -219,13 +252,8 @@ function ResultCard({
       <div className="space-y-3 divide-y divide-gray-700/60">
         <div className="space-y-3">{children}</div>
       </div>
-      {realWorldNote && (
-        <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/15">
-          <span className="text-sm shrink-0">💡</span>
-          <p className="text-xs text-emerald-300/80 leading-relaxed">
-            <span className="font-semibold">Worth knowing: </span>{realWorldNote}
-          </p>
-        </div>
+      {ethicsScore !== undefined && ethicsSummary && (
+        <EthicsScore score={ethicsScore} summary={ethicsSummary} />
       )}
       <ConfidenceBar value={confidence} />
       <div className="flex items-start gap-2 text-xs text-gray-600 pt-1">
@@ -395,8 +423,17 @@ function GroceryFormWrapper({ onResult }: { onResult: (r: GroceryResult) => void
 }
 
 function PurchaseFormWrapper({ onResult }: { onResult: (r: PurchaseResult) => void }) {
-  const [f, setF] = useState({ item: "", price: "", context: "", timeframe: "" });
+  const [f, setF] = useState({ item: "", price: "", context: "", timeframe: "", user_values: [] as string[] });
   const [loading, setLoading] = useState(false);
+
+  function toggleValue(id: string) {
+    setF((p) => ({
+      ...p,
+      user_values: p.user_values.includes(id)
+        ? p.user_values.filter((v) => v !== id)
+        : [...p.user_values, id],
+    }));
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -453,6 +490,28 @@ function PurchaseFormWrapper({ onResult }: { onResult: (r: PurchaseResult) => vo
           onChange={(e) => setF((p) => ({ ...p, context: e.target.value }))}
         />
       </Field>
+      <Field label="Your values (optional)">
+        <div className="flex flex-wrap gap-2 pt-1">
+          {USER_VALUE_OPTIONS.map((opt) => {
+            const checked = f.user_values.includes(opt.id);
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => toggleValue(opt.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full border text-xs font-medium transition-colors",
+                  checked
+                    ? "border-emerald-400/60 bg-emerald-400/10 text-emerald-400"
+                    : "border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-300 bg-gray-900"
+                )}
+              >
+                {checked ? "✓ " : ""}{opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
       <button
         type="submit"
         disabled={!f.item || !f.price || loading}
@@ -465,7 +524,7 @@ function PurchaseFormWrapper({ onResult }: { onResult: (r: PurchaseResult) => vo
 }
 
 function InvestmentFormWrapper({ onResult }: { onResult: (r: InvestmentResult) => void }) {
-  const [f, setF] = useState({ investment_type: "", expected_return: "", amount: "", duration: "" });
+  const [f, setF] = useState({ investment_type: "", expected_return: "", amount: "", duration: "", esg_preference: false });
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -532,6 +591,20 @@ function InvestmentFormWrapper({ onResult }: { onResult: (r: InvestmentResult) =
           <option value="10">10 years</option>
           <option value="20">20+ years</option>
         </select>
+      </Field>
+      <Field label="Preferences (optional)">
+        <button
+          type="button"
+          onClick={() => setF((p) => ({ ...p, esg_preference: !p.esg_preference }))}
+          className={cn(
+            "px-3 py-1.5 rounded-full border text-xs font-medium transition-colors",
+            f.esg_preference
+              ? "border-emerald-400/60 bg-emerald-400/10 text-emerald-400"
+              : "border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-300 bg-gray-900"
+          )}
+        >
+          {f.esg_preference ? "✓ " : ""}ESG / ethical investing matters to me
+        </button>
       </Field>
       <button
         type="submit"

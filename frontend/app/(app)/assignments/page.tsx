@@ -7,9 +7,9 @@ import type { Assignment, AssignmentDifficulty } from "@/types/database";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DIFFICULTY_CONFIG = {
-  easy:   { label: "Easy",   delta: "+5",  color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30", bar: "bg-emerald-400" },
-  medium: { label: "Medium", delta: "+10", color: "text-amber-400 bg-amber-400/10 border-amber-400/30",       bar: "bg-amber-400"   },
-  hard:   { label: "Hard",   delta: "+20", color: "text-red-400 bg-red-400/10 border-red-400/30",             bar: "bg-red-400"     },
+  easy:   { label: "Easy",   delta: 5,  deltaStr: "+5",  color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30", bar: "bg-emerald-400" },
+  medium: { label: "Medium", delta: 10, deltaStr: "+10", color: "text-amber-400 bg-amber-400/10 border-amber-400/30",       bar: "bg-amber-400"   },
+  hard:   { label: "Hard",   delta: 20, deltaStr: "+20", color: "text-red-400 bg-red-400/10 border-red-400/30",             bar: "bg-red-400"     },
 } as const;
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -35,6 +35,108 @@ function formatDate(iso: string): string {
   });
 }
 
+// ─── Score Ring ───────────────────────────────────────────────────────────────
+
+function ScoreRing({ assignments }: { assignments: Assignment[] }) {
+  const total     = assignments.length;
+  const completed = assignments.filter((a) => a.status === "completed").length;
+  const inProg    = assignments.filter((a) => a.status === "in_progress").length;
+  const pct       = total === 0 ? 0 : Math.round((completed / total) * 100);
+  const earned    = assignments
+    .filter((a) => a.status === "completed")
+    .reduce((s, a) => s + DIFFICULTY_CONFIG[a.difficulty].delta, 0);
+
+  const R  = 44;
+  const cx = 56;
+  const circumference = 2 * Math.PI * R;
+  const offset = circumference * (1 - pct / 100);
+
+  return (
+    <div className="rounded-2xl bg-gray-900 border border-gray-800 p-5 space-y-5">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Progress</h3>
+
+      {/* Ring */}
+      <div className="flex justify-center">
+        <div className="relative w-28 h-28">
+          <svg viewBox="0 0 112 112" className="w-full h-full -rotate-90">
+            {/* Track */}
+            <circle cx={cx} cy={cx} r={R} fill="none" stroke="#1f2937" strokeWidth="9" />
+            {/* In-progress arc (amber/30) */}
+            {inProg > 0 && (
+              <circle
+                cx={cx} cy={cx} r={R}
+                fill="none"
+                stroke="#fbbf2455"
+                strokeWidth="9"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference * (1 - (completed + inProg) / total)}
+                strokeLinecap="round"
+              />
+            )}
+            {/* Completed arc */}
+            <circle
+              cx={cx} cy={cx} r={R}
+              fill="none"
+              stroke="#fbbf24"
+              strokeWidth="9"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
+              style={{ transition: "stroke-dashoffset 0.7s ease" }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold text-gray-100 leading-none">{pct}%</span>
+            <span className="text-[10px] text-gray-500 mt-0.5">done</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="space-y-2.5">
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-500">Completed</span>
+          <span className="font-semibold text-emerald-400">{completed}</span>
+        </div>
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-500">In progress</span>
+          <span className="font-semibold text-amber-400">{inProg}</span>
+        </div>
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-500">To do</span>
+          <span className="font-semibold text-gray-300">
+            {assignments.filter((a) => a.status === "todo").length}
+          </span>
+        </div>
+        <div className="pt-3 border-t border-gray-800 flex justify-between items-center text-sm">
+          <span className="text-gray-500">Cred earned</span>
+          <span className="font-bold text-amber-400">+{earned}</span>
+        </div>
+      </div>
+
+      {/* Difficulty breakdown */}
+      {completed > 0 && (
+        <div className="pt-1 space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wider text-gray-600 font-semibold mb-2">Breakdown</p>
+          {(["easy", "medium", "hard"] as const).map((d) => {
+            const n = assignments.filter((a) => a.status === "completed" && a.difficulty === d).length;
+            if (n === 0) return null;
+            const cfg = DIFFICULTY_CONFIG[d];
+            return (
+              <div key={d} className="flex justify-between items-center text-xs">
+                <span className={`${cfg.color} px-1.5 py-0.5 rounded-full border text-[10px]`}>
+                  {cfg.label}
+                </span>
+                <span className="text-gray-500">×{n} = <span className="text-amber-400 font-medium">+{n * cfg.delta}</span></span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── AssignmentCard ───────────────────────────────────────────────────────────
 
 function AssignmentCard({
@@ -51,9 +153,9 @@ function AssignmentCard({
   const [loading, setLoading] = useState(false);
   const [celebration, setCelebration] = useState<string | null>(null);
 
-  const diff = DIFFICULTY_CONFIG[assignment.difficulty];
-  const done = assignment.status === "completed";
-  const overdue = !done && isOverdue(assignment.due_date);
+  const diff   = DIFFICULTY_CONFIG[assignment.difficulty];
+  const done   = assignment.status === "completed";
+  const overdue  = !done && isOverdue(assignment.due_date);
   const thisWeek = !done && !overdue && isDueThisWeek(assignment.due_date);
 
   async function handleComplete() {
@@ -66,7 +168,7 @@ function AssignmentCard({
 
   return (
     <div className={`relative rounded-2xl bg-gray-900 border border-gray-800 p-4 transition-opacity ${done ? "opacity-60" : ""}`}>
-      {/* Difficulty accent top bar */}
+      {/* Difficulty accent bar */}
       <div className={`absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl ${diff.bar}`} />
 
       <div className="flex items-start justify-between mt-1">
@@ -82,10 +184,10 @@ function AssignmentCard({
         </button>
       </div>
 
-      {/* Meta row */}
+      {/* Meta */}
       <div className="flex items-center gap-2 mt-3 flex-wrap">
         <span className={`text-xs px-2 py-0.5 rounded-full border ${diff.color}`}>
-          {diff.label} {diff.delta}
+          {diff.label} {diff.deltaStr}
         </span>
         <span className={`text-xs flex items-center gap-1 ${
           overdue ? "text-red-400" : thisWeek ? "text-amber-400" : "text-gray-500"
@@ -131,7 +233,6 @@ function AssignmentCard({
         </div>
       )}
 
-      {/* Celebration flash */}
       {celebration && (
         <div className="mt-3 flex items-center justify-center gap-1.5 text-amber-400 text-xs font-medium">
           <CheckCircle2 size={14} />
@@ -162,7 +263,7 @@ function Section({ label, count, color = "text-gray-600", children }: {
         <h2 className={`text-xs font-semibold uppercase tracking-wider ${color}`}>{label}</h2>
         <span className="text-xs text-gray-700">{count}</span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
     </div>
   );
 }
@@ -171,13 +272,11 @@ function Section({ label, count, color = "text-gray-600", children }: {
 
 export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading]         = useState(true);
+  const [modalOpen, setModalOpen]     = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
   const [form, setForm] = useState({
-    title: "",
-    subject: "",
-    due_date: "",
+    title: "", subject: "", due_date: "",
     difficulty: "medium" as AssignmentDifficulty,
   });
 
@@ -199,10 +298,8 @@ export default function AssignmentsPage() {
     setSubmitting(true);
     try {
       const a = await api.assignments.create({
-        title:      form.title,
-        subject:    form.subject,
-        due_date:   form.due_date,
-        difficulty: form.difficulty,
+        title: form.title, subject: form.subject,
+        due_date: form.due_date, difficulty: form.difficulty,
       });
       setAssignments((prev) => [a, ...prev]);
       setModalOpen(false);
@@ -243,8 +340,7 @@ export default function AssignmentsPage() {
     }
   }
 
-  // ── Grouping ─────────────────────────────────────────────────────────────
-
+  // Grouping
   const active   = assignments.filter((a) => a.status !== "completed");
   const overdue  = active.filter((a) => isOverdue(a.due_date));
   const thisWeek = active.filter((a) => !isOverdue(a.due_date) && isDueThisWeek(a.due_date));
@@ -258,7 +354,7 @@ export default function AssignmentsPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -276,57 +372,74 @@ export default function AssignmentsPage() {
         </button>
       </div>
 
-      {/* Loading skeleton */}
-      {loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-44 rounded-2xl bg-gray-800 animate-pulse" />
-          ))}
-        </div>
-      )}
+      {/* Two-column layout */}
+      <div className="flex gap-6 items-start">
 
-      {/* Empty state */}
-      {!loading && assignments.length === 0 && (
-        <div className="rounded-2xl bg-gray-900 border border-gray-800 p-16 text-center">
-          <BookOpen size={48} className="mx-auto text-gray-700 mb-3" />
-          <p className="text-gray-400 font-medium">No assignments yet</p>
-          <p className="text-gray-600 text-sm mt-1">
-            Track your coursework and earn credibility for completing it
-          </p>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-400 text-gray-950 font-medium text-sm hover:bg-amber-300 transition-colors mx-auto"
-          >
-            <Plus size={16} /> Add your first assignment
-          </button>
-        </div>
-      )}
+        {/* ── Left: content ── */}
+        <div className="flex-1 min-w-0 space-y-8">
 
-      {/* Grouped sections */}
-      {!loading && assignments.length > 0 && (
-        <div className="space-y-8">
-          {overdue.length > 0 && (
-            <Section label="Overdue" count={overdue.length} color="text-red-500">
-              {overdue.map((a) => <AssignmentCard key={a.id} assignment={a} {...cardProps} />)}
-            </Section>
+          {/* Loading skeleton */}
+          {loading && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-44 rounded-2xl bg-gray-800 animate-pulse" />
+              ))}
+            </div>
           )}
-          {thisWeek.length > 0 && (
-            <Section label="Due This Week" count={thisWeek.length} color="text-amber-500">
-              {thisWeek.map((a) => <AssignmentCard key={a.id} assignment={a} {...cardProps} />)}
-            </Section>
+
+          {/* Empty state */}
+          {!loading && assignments.length === 0 && (
+            <div className="rounded-2xl bg-gray-900 border border-gray-800 p-16 text-center">
+              <BookOpen size={48} className="mx-auto text-gray-700 mb-3" />
+              <p className="text-gray-400 font-medium">No assignments yet</p>
+              <p className="text-gray-600 text-sm mt-1">
+                Track your coursework and earn credibility for completing it
+              </p>
+              <button
+                onClick={() => setModalOpen(true)}
+                className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-400 text-gray-950 font-medium text-sm hover:bg-amber-300 transition-colors mx-auto"
+              >
+                <Plus size={16} /> Add your first assignment
+              </button>
+            </div>
           )}
-          {upcoming.length > 0 && (
-            <Section label="Upcoming" count={upcoming.length}>
-              {upcoming.map((a) => <AssignmentCard key={a.id} assignment={a} {...cardProps} />)}
-            </Section>
-          )}
-          {done.length > 0 && (
-            <Section label="Completed" count={done.length}>
-              {done.map((a) => <AssignmentCard key={a.id} assignment={a} {...cardProps} />)}
-            </Section>
+
+          {/* Sections */}
+          {!loading && assignments.length > 0 && (
+            <div className="space-y-8">
+              {overdue.length > 0 && (
+                <Section label="Overdue" count={overdue.length} color="text-red-500">
+                  {overdue.map((a) => <AssignmentCard key={a.id} assignment={a} {...cardProps} />)}
+                </Section>
+              )}
+              {thisWeek.length > 0 && (
+                <Section label="Due This Week" count={thisWeek.length} color="text-amber-500">
+                  {thisWeek.map((a) => <AssignmentCard key={a.id} assignment={a} {...cardProps} />)}
+                </Section>
+              )}
+              {upcoming.length > 0 && (
+                <Section label="Upcoming" count={upcoming.length}>
+                  {upcoming.map((a) => <AssignmentCard key={a.id} assignment={a} {...cardProps} />)}
+                </Section>
+              )}
+              {done.length > 0 && (
+                <Section label="Completed" count={done.length}>
+                  {done.map((a) => <AssignmentCard key={a.id} assignment={a} {...cardProps} />)}
+                </Section>
+              )}
+            </div>
           )}
         </div>
-      )}
+
+        {/* ── Right: score ring ── */}
+        <div className="w-52 shrink-0 sticky top-20">
+          {loading ? (
+            <div className="h-72 rounded-2xl bg-gray-800 animate-pulse" />
+          ) : (
+            <ScoreRing assignments={assignments} />
+          )}
+        </div>
+      </div>
 
       {/* Create Modal */}
       {modalOpen && (
@@ -383,7 +496,7 @@ export default function AssignmentsPage() {
                       }`}
                     >
                       {cfg.label}
-                      <span className="block text-[10px] mt-0.5 opacity-70">{cfg.delta} cred</span>
+                      <span className="block text-[10px] mt-0.5 opacity-70">{cfg.deltaStr} cred</span>
                     </button>
                   );
                 })}

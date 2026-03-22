@@ -16,6 +16,12 @@ import { NextResponse } from "next/server";
 const daysAgo = (n: number) =>
   new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
 
+const daysFromNow = (n: number) =>
+  new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+const daysAgoDate = (n: number) =>
+  new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
 // ─── Users ───────────────────────────────────────────────────────────────────
 
 const DEMO_USERS = [
@@ -956,6 +962,40 @@ export async function GET() {
       value,
       voter_credibility_at_vote: 100,
     });
+  }
+
+  // ── 7. Assignments (for "you" / guest user) ──────────────────────────────
+  const guestId = emailToId["guest@buddy-demo.local"];
+  if (guestId) {
+    const { data: existingAssignments } = await supabase
+      .from("assignments")
+      .select("id")
+      .eq("user_id", guestId)
+      .limit(1);
+
+    if (!existingAssignments || existingAssignments.length === 0) {
+      const DEMO_ASSIGNMENTS = [
+        // Overdue
+        { title: "Personal Finance Blog Post",       subject: "FIN2020 Personal Finance",          due_date: daysAgoDate(2),  difficulty: "medium", status: "todo"      },
+        // Due this week
+        { title: "Financial Economics Essay",        subject: "ECO2001 Financial Economics",        due_date: daysFromNow(4),  difficulty: "hard",   status: "in_progress" },
+        { title: "Macroeconomics Problem Set 3",     subject: "ECO1005 Macroeconomics",             due_date: daysFromNow(6),  difficulty: "medium", status: "todo"      },
+        // Upcoming
+        { title: "Statistics Lab Report",            subject: "STAT1001 Introduction to Statistics", due_date: daysFromNow(14), difficulty: "easy",   status: "todo"      },
+        { title: "Investment Portfolio Analysis",    subject: "FIN3001 Advanced Investments",       due_date: daysFromNow(21), difficulty: "hard",   status: "todo"      },
+        // Completed
+        { title: "Budget Tracking Spreadsheet",     subject: "FIN2010 Budgeting Skills",           due_date: daysAgoDate(20), difficulty: "easy",   status: "completed", completed_at: daysAgo(18) },
+        { title: "Reading Week Summary Notes",       subject: "ECO1005 Macroeconomics",             due_date: daysAgoDate(10), difficulty: "easy",   status: "completed", completed_at: daysAgo(9)  },
+        { title: "Financial Literacy Quiz",          subject: "FIN1001 Foundation Finance",         due_date: daysAgoDate(30), difficulty: "medium", status: "completed", completed_at: daysAgo(28) },
+      ];
+
+      for (const a of DEMO_ASSIGNMENTS) {
+        await supabase.from("assignments").insert({ user_id: guestId, ...a });
+      }
+      results["assignments"] = `seeded ${DEMO_ASSIGNMENTS.length} assignments`;
+    } else {
+      results["assignments"] = "already seeded";
+    }
   }
 
   results["summary"] = {

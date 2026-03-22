@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -90,6 +89,7 @@ def update_status(
         db.table("assignments")
         .update({"status": payload.status})
         .eq("id", str(assignment_id))
+        .select()
         .execute()
     )
     return result.data[0]
