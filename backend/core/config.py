@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     vote_up_base_delta: int = 3
     vote_down_base_delta: int = -2
     stake_validate_delta: int = 20
+    stake_win_multiplier: float = 1.5  # bonus multiplier applied to a winning stake
+
+    # Inactivity decay
+    decay_grace_days: int = 7   # days before decay starts
+    decay_daily_rate: int = 2   # credibility lost per day after grace period
 
 
 settings = Settings()

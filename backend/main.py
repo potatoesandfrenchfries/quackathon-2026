@@ -1,13 +1,47 @@
+from contextlib import asynccontextmanager
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
+from core.database import get_db
 from routers import auth, posts, answers, votes, credibility, tools, rag
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ── Startup ──────────────────────────────────────────────────────────────
+    scheduler = AsyncIOScheduler(timezone="UTC")
+
+    # Daily inactivity decay — runs at midnight UTC
+    from services.decay import run_decay_job
+    db = next(get_db())
+    scheduler.add_job(
+        run_decay_job,
+        trigger="cron",
+        hour=0,
+        minute=0,
+        args=[db],
+        id="inactivity_decay",
+        replace_existing=True,
+    )
+
+    scheduler.start()
+    print("[Scheduler] Started — inactivity decay job registered (daily 00:00 UTC).")
+
+    yield
+
+    # ── Shutdown ─────────────────────────────────────────────────────────────
+    scheduler.shutdown(wait=False)
+    print("[Scheduler] Stopped.")
+
 
 app = FastAPI(
     title="Buddy API",
     description="Student financial well-being platform — credibility as currency",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

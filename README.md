@@ -122,18 +122,49 @@ docker compose down
 
 ---
 
+## Testing
+
+```bash
+# Run both suites
+python run_tests.py
+
+# Run one suite only
+python run_tests.py --backend
+python run_tests.py --frontend
+
+# Always exit 0 (print failures as warnings instead of errors)
+python run_tests.py --warn-only
+```
+
+**Backend (pytest)**
+```bash
+cd backend
+pip install -r requirements-test.txt
+python -m pytest -v
+```
+
+**Frontend (vitest)**
+```bash
+cd frontend
+npm test          # single run
+npm run test:watch  # watch mode
+```
+
+---
+
 ## CI/CD (GitHub Actions)
 
-This repository now includes two workflows:
+This repository includes two workflows:
 
 - `.github/workflows/ci.yml`
     - Runs on pull requests and pushes to `main`
-    - Frontend: `npm ci`, `npm run lint`, `npm run build`
-    - Backend: dependency install, syntax compile check, `pip check`
+    - Frontend: lint → **test** → build
+    - Backend: **pytest** → `pip check`
+    - Test failures emit a `::warning::` annotation but do not block the job
 
 - `.github/workflows/cd.yml`
     - Runs on pushes to `main` and manual dispatch
-    - Executes a production quality gate (frontend build + backend syntax check)
+    - Quality gate: backend tests → frontend tests → frontend build (tests are warn-only)
     - Triggers deployment hooks if secrets are configured
 
 ### Required GitHub Secrets (for CD deploy triggers)
@@ -175,7 +206,7 @@ If these secrets are not set, deploy jobs will be skipped safely, while CI still
 3. Fill in the secret env vars marked `sync: false` in the Render dashboard:
    - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`
    - `ANTHROPIC_API_KEY`
-   - `PINECONE_API_KEY` (optional — RAG is currently stubbed)
+   - `PINECONE_API_KEY` (optional — omit to fall back to built-in UK finance snippets)
    - `REDIS_URL` (optional — from Upstash free tier)
 4. Once deployed, paste the Render URL into Vercel's `NEXT_PUBLIC_API_URL` env var
 
@@ -189,9 +220,13 @@ buddy/
 │   └── migrations/
 │       └── 001_initial_schema.sql    ← Run this in Supabase SQL Editor
 │
+├── run_tests.py                          ← Run all tests locally (pytest + vitest)
+│
 ├── backend/                          ← FastAPI (Python)
 │   ├── main.py
 │   ├── requirements.txt
+│   ├── requirements-test.txt         ← Adds pytest + pytest-asyncio
+│   ├── pytest.ini
 │   ├── .env.example
 │   ├── core/
 │   │   ├── auth.py                   ← JWT verification (Supabase tokens)
@@ -202,13 +237,23 @@ buddy/
 │   │   ├── posts.py                  ← /posts/* — questions
 │   │   ├── answers.py                ← /answers/* — responses
 │   │   ├── votes.py                  ← /votes/* — credibility-weighted voting
-│   │   └── credibility.py            ← /credibility/* — scores, history, leaderboard
+│   │   ├── credibility.py            ← /credibility/* — scores, history, leaderboard
+│   │   └── rag.py                    ← /rag/* — ingest, retrieve, status
 │   ├── services/
-│   │   └── credibility_engine.py     ← Single source of truth for all cred mutations
-│   └── agents/
-│       └── advisor.py                ← AI Advisor Agent (Claude)
+│   │   ├── credibility_engine.py     ← Single source of truth for all cred mutations
+│   │   ├── rag.py                    ← Pinecone vector search + Claude Haiku sentiment
+│   │   └── document_sources.py       ← UK financial document fetcher + chunker
+│   ├── agents/
+│   │   └── advisor.py                ← AI Advisor Agent (Claude)
+│   └── tests/
+│       ├── conftest.py               ← Env var setup for pytest
+│       ├── test_credibility_engine.py
+│       └── test_rag_service.py
 │
 └── frontend/                         ← Next.js 15 (App Router)
+    ├── __tests__/
+    │   └── api.test.ts               ← API client unit tests (vitest)
+    ├── vitest.config.ts
     ├── app/
     │   ├── page.tsx                  ← Landing page
     │   ├── onboarding/page.tsx       ← 3-step onboarding wizard

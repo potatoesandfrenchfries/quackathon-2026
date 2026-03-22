@@ -196,3 +196,43 @@ def on_fact_check_pass(
         topic=topic,
         reference_id=answer_id,
     )
+
+
+def settle_stakes(
+    db: Client,
+    *,
+    post_id: str,
+    accepted_answer_id: str,
+    topic: str,
+) -> None:
+    """
+    Emit STAKE_WON / STAKE_LOST events for every answer that carried a stake.
+
+    - Accepted answerer: +round(stake_amount * stake_win_multiplier)  [STAKE_WON]
+    - Every other staker: -stake_amount                               [STAKE_LOST]
+
+    Answers with stake_amount == 0 are ignored.
+    """
+    staked = (
+        db.table("answers")
+        .select("id, author_id, stake_amount")
+        .eq("post_id", post_id)
+        .gt("stake_amount", 0)
+        .execute()
+    )
+    for answer in staked.data or []:
+        if answer["id"] == accepted_answer_id:
+            delta = round(answer["stake_amount"] * settings.stake_win_multiplier)
+            reason = CredReason.STAKE_WON
+        else:
+            delta = -answer["stake_amount"]
+            reason = CredReason.STAKE_LOST
+
+        award(
+            db,
+            user_id=answer["author_id"],
+            delta=delta,
+            reason=reason,
+            topic=topic,
+            reference_id=answer["id"],
+        )

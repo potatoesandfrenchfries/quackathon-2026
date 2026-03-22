@@ -112,6 +112,7 @@ def create_post(
 def accept_answer(
     post_id: UUID,
     payload: AcceptAnswerPayload,
+    background_tasks: BackgroundTasks,
     user_id: CurrentUserId,
     db: Client = Depends(get_db),
 ):
@@ -146,13 +147,24 @@ def accept_answer(
         {"resolved": True, "accepted_answer_id": str(payload.answer_id)}
     ).eq("id", str(post_id)).execute()
 
-    # Award credibility (import here to avoid circular)
-    from services.credibility_engine import on_answer_accepted
+    # Award credibility + settle stakes (import here to avoid circular)
+    from services.credibility_engine import on_answer_accepted, settle_stakes
     on_answer_accepted(
         db,
         answer_author_id=answer.data["author_id"],
         topic=post.data["topic"],
         answer_id=str(payload.answer_id),
+    )
+    settle_stakes(
+        db,
+        post_id=str(post_id),
+        accepted_answer_id=str(payload.answer_id),
+        topic=post.data["topic"],
+    )
+
+    # Fact-check all other answers in the background
+    background_tasks.add_task(
+        _trigger_fact_checker, str(post_id), str(payload.answer_id), db
     )
 
     return {"accepted_answer_id": str(payload.answer_id), "resolved": True}
@@ -166,3 +178,12 @@ async def _trigger_ai_advisor(post_id: str, db: Client) -> None:
     except Exception as exc:
         # Never crash the request — AI is best-effort
         print(f"[AI Advisor] Failed for post {post_id}: {exc}")
+
+
+async def _trigger_fact_checker(post_id: str, accepted_answer_id: str, db: Client) -> None:
+    """Background task: fact-check all non-accepted answers after resolution."""
+    try:
+        from agents.fact_checker import run_fact_checker
+        await run_fact_checker(post_id, accepted_answer_id, db)
+    except Exception as exc:
+        print(f"[FactCheck] Failed for post {post_id}: {exc}")
