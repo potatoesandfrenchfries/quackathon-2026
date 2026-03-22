@@ -1,13 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, PiggyBank, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Modal } from "@/components/ui/Modal";
-import { useGoalStore } from "@/store/useGoalStore";
-import { useUserStore } from "@/store/useUserStore";
-import { type Goal } from "@/data/mock";
+import { api } from "@/lib/api";
+import type { Goal } from "@/types/database";
 
 const GOAL_COLORS = [
   { label: "Blue",   value: "blue",   hex: "#60A5FA" },
@@ -17,38 +16,49 @@ const GOAL_COLORS = [
   { label: "Pink",   value: "pink",   hex: "#F472B6" },
 ];
 
-const colorHex = (c: string) => GOAL_COLORS.find((x) => x.value === c)?.hex ?? "#60A5FA";
+const COLOR_HEX: Record<string, string> = Object.fromEntries(
+  GOAL_COLORS.map((c) => [c.value, c.hex])
+);
 
-function GoalCard({ goal }: { goal: Goal }) {
-  const { addFunds, removeGoal } = useGoalStore();
-  const { addXP } = useUserStore();
+function GoalCard({
+  goal,
+  onProgress,
+  onDelete,
+}: {
+  goal: Goal;
+  onProgress: (id: string, amount: number) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}) {
   const [adding, setAdding] = useState(false);
   const [amount, setAmount] = useState("");
-  const completed = goal.currentAmount >= goal.targetAmount;
-  const pct = Math.round((goal.currentAmount / goal.targetAmount) * 100);
+  const [submitting, setSubmitting] = useState(false);
+  const completed = goal.current_amount >= goal.target_amount;
+  const pct = Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100));
   const daysLeft = Math.max(
     0,
     Math.ceil((new Date(goal.deadline).getTime() - Date.now()) / 86_400_000)
   );
+  const hex = COLOR_HEX[goal.color] ?? "#60A5FA";
 
-  function handleAdd() {
+  async function handleAdd() {
     const n = parseFloat(amount);
     if (!n || n <= 0) return;
-    addFunds(goal.id, n);
-    addXP(15);
+    setSubmitting(true);
+    await onProgress(goal.id, n);
     setAmount("");
     setAdding(false);
+    setSubmitting(false);
   }
 
   return (
     <Card className={`relative overflow-hidden ${completed ? "ring-1 ring-emerald-500/50" : ""}`}>
-      <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl" style={{ backgroundColor: colorHex(goal.color) }} />
+      <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl" style={{ backgroundColor: hex }} />
 
       <div className="flex items-start justify-between mt-1">
         <div className="flex items-center gap-3">
           <span className="text-3xl">{goal.emoji}</span>
           <div>
-            <h3 className="font-semibold text-gray-100">{goal.name}</h3>
+            <h3 className="font-semibold text-gray-100">{goal.title}</h3>
             <p className="text-xs text-gray-500 mt-0.5">
               {completed
                 ? "🎉 Completed!"
@@ -57,17 +67,20 @@ function GoalCard({ goal }: { goal: Goal }) {
             </p>
           </div>
         </div>
-        <button onClick={() => removeGoal(goal.id)} className="text-gray-700 hover:text-red-400 transition-colors">
+        <button
+          onClick={() => onDelete(goal.id)}
+          className="text-gray-700 hover:text-red-400 transition-colors"
+        >
           <Trash2 size={15} />
         </button>
       </div>
 
       <div className="mt-4">
         <div className="flex justify-between text-sm mb-2">
-          <span className="font-semibold text-gray-100">£{goal.currentAmount.toFixed(0)}</span>
-          <span className="text-gray-500">£{goal.targetAmount.toFixed(0)}</span>
+          <span className="font-semibold text-gray-100">£{goal.current_amount.toFixed(0)}</span>
+          <span className="text-gray-500">£{goal.target_amount.toFixed(0)}</span>
         </div>
-        <ProgressBar value={goal.currentAmount} max={goal.targetAmount} color={colorHex(goal.color)} size="lg" />
+        <ProgressBar value={goal.current_amount} max={goal.target_amount} color={hex} size="lg" />
         <p className="text-xs text-gray-600 mt-1.5">{pct}% saved</p>
       </div>
 
@@ -83,7 +96,9 @@ function GoalCard({ goal }: { goal: Goal }) {
                 className="flex-1 px-3 py-2 text-sm bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-xl focus:outline-none focus:border-amber-400"
                 autoFocus
               />
-              <Button size="sm" onClick={handleAdd}>Add</Button>
+              <Button size="sm" onClick={handleAdd} disabled={submitting}>
+                {submitting ? "…" : "Add"}
+              </Button>
               <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>✕</Button>
             </div>
           ) : (
@@ -108,41 +123,98 @@ function GoalCard({ goal }: { goal: Goal }) {
 }
 
 export default function GoalsPage() {
-  const { goals, addGoal } = useGoalStore();
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    name: "", emoji: "🎯", targetAmount: "", deadline: "", color: "blue",
+    title: "", emoji: "🎯", target_amount: "", deadline: "",
+    color: "blue", is_shared: false,
   });
 
-  function handleCreate() {
-    if (!form.name || !form.targetAmount || !form.deadline) return;
-    addGoal({
-      name: form.name,
-      emoji: form.emoji,
-      targetAmount: parseFloat(form.targetAmount),
-      deadline: form.deadline,
-      color: form.color,
-    });
-    setModalOpen(false);
-    setForm({ name: "", emoji: "🎯", targetAmount: "", deadline: "", color: "blue" });
+  const load = useCallback(async () => {
+    try {
+      const data = await api.goals.list();
+      setGoals(data);
+    } catch {
+      // keep empty — no mock data for goals
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleCreate() {
+    if (!form.title || !form.target_amount || !form.deadline) return;
+    setSubmitting(true);
+    try {
+      const goal = await api.goals.create({
+        title: form.title,
+        emoji: form.emoji,
+        color: form.color,
+        target_amount: parseFloat(form.target_amount),
+        deadline: form.deadline,
+        is_shared: form.is_shared,
+      });
+      setGoals((prev) => [goal, ...prev]);
+      setModalOpen(false);
+      setForm({ title: "", emoji: "🎯", target_amount: "", deadline: "", color: "blue", is_shared: false });
+    } catch {
+      // silently fail
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  const completed = goals.filter((g) => g.currentAmount >= g.targetAmount);
-  const active     = goals.filter((g) => g.currentAmount < g.targetAmount);
+  async function handleProgress(id: string, amount: number) {
+    try {
+      const result = await api.goals.addProgress(id, amount);
+      setGoals((prev) =>
+        prev.map((g) =>
+          g.id === id
+            ? { ...g, current_amount: result.current_amount }
+            : g
+        )
+      );
+    } catch {
+      // silently fail
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await api.goals.delete(id);
+      setGoals((prev) => prev.filter((g) => g.id !== id));
+    } catch {
+      // silently fail
+    }
+  }
+
+  const active    = goals.filter((g) => g.current_amount < g.target_amount);
+  const completed = goals.filter((g) => g.current_amount >= g.target_amount);
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-100">Savings Goals</h1>
-          <p className="text-gray-500 text-sm mt-1">{active.length} active · {completed.length} completed</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {loading ? "Loading…" : `${active.length} active · ${completed.length} completed`}
+          </p>
         </div>
         <Button onClick={() => setModalOpen(true)}>
           <Plus size={16} /> New Goal
         </Button>
       </div>
 
-      {goals.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-52 rounded-2xl bg-gray-800 animate-pulse" />
+          ))}
+        </div>
+      ) : goals.length === 0 ? (
         <Card className="text-center py-16">
           <PiggyBank size={48} className="mx-auto text-gray-700 mb-3" />
           <p className="text-gray-400 font-medium">No goals yet</p>
@@ -154,13 +226,17 @@ export default function GoalsPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {active.map((g) => <GoalCard key={g.id} goal={g} />)}
+            {active.map((g) => (
+              <GoalCard key={g.id} goal={g} onProgress={handleProgress} onDelete={handleDelete} />
+            ))}
           </div>
           {completed.length > 0 && (
             <div>
               <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">Completed</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 opacity-60">
-                {completed.map((g) => <GoalCard key={g.id} goal={g} />)}
+                {completed.map((g) => (
+                  <GoalCard key={g.id} goal={g} onProgress={handleProgress} onDelete={handleDelete} />
+                ))}
               </div>
             </div>
           )}
@@ -185,8 +261,8 @@ export default function GoalsPage() {
               <input
                 type="text"
                 placeholder="e.g. New Laptop"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
                 className="w-full px-3 py-2.5 text-sm bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-xl focus:outline-none focus:border-amber-400"
               />
             </div>
@@ -199,8 +275,8 @@ export default function GoalsPage() {
               <input
                 type="number"
                 placeholder="0.00"
-                value={form.targetAmount}
-                onChange={(e) => setForm({ ...form, targetAmount: e.target.value })}
+                value={form.target_amount}
+                onChange={(e) => setForm({ ...form, target_amount: e.target.value })}
                 className="w-full pl-7 pr-4 py-2.5 text-sm bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 rounded-xl focus:outline-none focus:border-amber-400"
               />
             </div>
@@ -230,8 +306,25 @@ export default function GoalsPage() {
             </div>
           </div>
 
-          <Button className="w-full mt-2" onClick={handleCreate}>
-            Create Goal
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div className="relative">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={form.is_shared}
+                onChange={(e) => setForm({ ...form, is_shared: e.target.checked })}
+              />
+              <div className={`w-10 h-5 rounded-full transition-colors ${form.is_shared ? "bg-amber-400" : "bg-gray-700"}`} />
+              <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${form.is_shared ? "translate-x-5" : ""}`} />
+            </div>
+            <div>
+              <span className="text-sm text-gray-300 font-medium">Share publicly</span>
+              <p className="text-xs text-gray-600">Let other students see your goal for accountability</p>
+            </div>
+          </label>
+
+          <Button className="w-full mt-2" onClick={handleCreate} disabled={submitting}>
+            {submitting ? "Creating…" : "Create Goal"}
           </Button>
         </div>
       </Modal>

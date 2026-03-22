@@ -198,6 +198,28 @@ def on_fact_check_pass(
     )
 
 
+def on_challenge_completed(db: Client, *, user_id: str, challenge_id: str) -> None:
+    """Award credibility when a user completes a challenge."""
+    award(
+        db,
+        user_id=user_id,
+        delta=settings.challenge_completed_delta,
+        reason=CredReason.MODULE_COMPLETED,
+        reference_id=challenge_id,
+    )
+
+
+def on_goal_completed(db: Client, *, user_id: str, goal_id: str) -> None:
+    """Award a small credibility boost when a personal savings goal is reached."""
+    award(
+        db,
+        user_id=user_id,
+        delta=10,
+        reason=CredReason.MODULE_COMPLETED,
+        reference_id=goal_id,
+    )
+
+
 def settle_stakes(
     db: Client,
     *,

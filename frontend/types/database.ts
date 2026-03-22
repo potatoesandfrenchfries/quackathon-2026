@@ -98,6 +98,53 @@ export interface AIResponse {
   reasoning?: string;
   disclaimer: string;
   resources?: string[];
+  real_world_note?: string | null;
+}
+
+export type ChallengeStatus = "active" | "completed" | "abandoned";
+
+export interface Challenge {
+  id: string;
+  created_by: string | null;
+  title: string;
+  description: string;
+  topic: Topic | null;
+  target_description: string;
+  duration_days: number;
+  participant_count: number;
+  completed_count: number;
+  is_active: boolean;
+  created_at: string;
+  // Joined on GET /{id}
+  my_participation?: ChallengeParticipant | null;
+  // Joined on recommended
+  recommendation_reason?: string;
+}
+
+export interface ChallengeParticipant {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  join_number: number;
+  status: ChallengeStatus;
+  checkin_streak: number;
+  last_checkin_at: string | null;
+  completed_at: string | null;
+  joined_at: string;
+}
+
+export interface Goal {
+  id: string;
+  user_id: string;
+  title: string;
+  emoji: string;
+  color: string;
+  target_amount: number;
+  current_amount: number;
+  deadline: string;
+  is_shared: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CredibilitySnapshot {

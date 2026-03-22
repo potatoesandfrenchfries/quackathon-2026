@@ -35,6 +35,7 @@ interface PurchaseResult {
   tip: string;
   confidence: number;
   disclaimer: string;
+  real_world_note?: string | null;
 }
 
 interface InvestmentResult {
@@ -46,6 +47,7 @@ interface InvestmentResult {
   tip: string;
   confidence: number;
   disclaimer: string;
+  real_world_note?: string | null;
 }
 
 // ─── config ────────────────────────────────────────────────────────────────
@@ -168,7 +170,7 @@ function GroceryResult({ result }: { result: GroceryResult }) {
 
 function PurchaseResult({ result }: { result: PurchaseResult }) {
   return (
-    <ResultCard headline={result.headline} verdict={result.verdict} confidence={result.confidence} disclaimer={result.disclaimer}>
+    <ResultCard headline={result.headline} verdict={result.verdict} confidence={result.confidence} disclaimer={result.disclaimer} realWorldNote={result.real_world_note}>
       <ResultRow label="Long-term cost analysis" value={result.long_term_cost} />
       <ResultRow label="Alternatives" value={result.alternatives} />
       <ResultRow label="Recommendation" value={result.tip} />
@@ -179,7 +181,7 @@ function PurchaseResult({ result }: { result: PurchaseResult }) {
 function InvestmentResult({ result }: { result: InvestmentResult }) {
   const riskColor = RISK_COLORS[result.risk_level] ?? "#6b7280";
   return (
-    <ResultCard headline={result.headline} verdict={result.verdict} confidence={result.confidence} disclaimer={result.disclaimer}>
+    <ResultCard headline={result.headline} verdict={result.verdict} confidence={result.confidence} disclaimer={result.disclaimer} realWorldNote={result.real_world_note}>
       <ResultRow label="Typical returns" value={result.typical_return} />
       <div className="space-y-1">
         <p className="font-mono text-[10px] uppercase tracking-widest text-gray-500">Risk level</p>
@@ -198,12 +200,14 @@ function ResultCard({
   verdict,
   confidence,
   disclaimer,
+  realWorldNote,
   children,
 }: {
   headline: string;
   verdict: string;
   confidence: number;
   disclaimer: string;
+  realWorldNote?: string | null;
   children: React.ReactNode;
 }) {
   return (
@@ -215,6 +219,14 @@ function ResultCard({
       <div className="space-y-3 divide-y divide-gray-700/60">
         <div className="space-y-3">{children}</div>
       </div>
+      {realWorldNote && (
+        <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/15">
+          <span className="text-sm shrink-0">💡</span>
+          <p className="text-xs text-emerald-300/80 leading-relaxed">
+            <span className="font-semibold">Worth knowing: </span>{realWorldNote}
+          </p>
+        </div>
+      )}
       <ConfidenceBar value={confidence} />
       <div className="flex items-start gap-2 text-xs text-gray-600 pt-1">
         <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />

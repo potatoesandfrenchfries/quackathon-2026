@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -12,6 +13,8 @@ import {
   Coins,
   ChevronDown,
   ChevronUp,
+  Trophy,
+  Users,
 } from "lucide-react";
 import {
   fetchForumPost,
@@ -193,6 +196,15 @@ function AIConsensusCard({ ai, comments }: { ai: AIResponse; comments: AnswerEnr
         </p>
         <p className="text-amber-300 font-semibold text-sm">{ai.action}</p>
       </div>
+
+      {ai.real_world_note && (
+        <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/15">
+          <span className="text-sm shrink-0">💡</span>
+          <p className="text-xs text-emerald-300/80 leading-relaxed">
+            <span className="font-semibold">Worth knowing: </span>{ai.real_world_note}
+          </p>
+        </div>
+      )}
 
       {ai.resources && ai.resources.length > 0 && (
         <div className="space-y-1">
@@ -474,6 +486,32 @@ export default function PostDetailPage() {
       {advisorLoading && <AIConsensusLoading />}
       {!advisorLoading && advisorResponse && (
         <AIConsensusCard ai={advisorResponse} comments={comments} />
+      )}
+
+      {/* Challenge nudge — shown after AI action */}
+      {post.topic && (
+        <Link
+          href={`/challenges?topic=${post.topic}`}
+          className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-amber-400/15 bg-amber-400/5 hover:border-amber-400/30 hover:bg-amber-400/10 transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-amber-400/10 flex items-center justify-center shrink-0">
+              <Trophy className="h-4 w-4 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-200 group-hover:text-amber-400 transition-colors">
+                Students are taking action on this
+              </p>
+              <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                <Users className="h-3 w-3" />
+                Join a challenge around {post.topic} — see who&apos;s already doing it
+              </p>
+            </div>
+          </div>
+          <span className="text-xs text-amber-400/70 shrink-0 group-hover:text-amber-400">
+            View →
+          </span>
+        </Link>
       )}
 
       {/* Comments */}

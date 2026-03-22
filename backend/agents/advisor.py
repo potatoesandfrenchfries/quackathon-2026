@@ -34,7 +34,8 @@ Your response MUST be valid JSON with this exact structure:
   "top_source_cred": <their credibility score>,
   "reasoning": "Why you weighted that source most heavily",
   "disclaimer": "This is educational guidance only, not regulated financial advice.",
-  "resources": ["<url or resource name>"]
+  "resources": ["<url or resource name>"],
+  "real_world_note": null
 }
 
 Key rules:
@@ -42,6 +43,9 @@ Key rules:
 - If no community answers exist, base response only on reference docs + financial snapshot
 - Confidence should reflect how certain the guidance is (< 50 if conflicting answers)
 - Be concrete: give numbers, thresholds, and specific next steps
+- real_world_note: if the recommended action has a notable ethical or sustainability angle
+  (e.g. ESG fund alternative exists, secondhand option available, brand has poor labour
+  practices), add ONE plain-English peer-tone sentence. Otherwise set to null. Never preachy.
 """
 
 

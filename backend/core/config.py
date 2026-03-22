@@ -38,5 +38,8 @@ class Settings(BaseSettings):
     decay_grace_days: int = 7   # days before decay starts
     decay_daily_rate: int = 2   # credibility lost per day after grace period
 
+    # Challenges
+    challenge_completed_delta: int = 30   # credibility awarded on challenge completion
+
 
 settings = Settings()

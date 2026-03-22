@@ -39,8 +39,12 @@ Respond ONLY with valid JSON matching exactly this structure:
   "alternatives": "<cheaper or better alternatives to consider>",
   "tip": "<one actionable recommendation>",
   "confidence": <integer 0-100>,
-  "disclaimer": "This is educational guidance only, not financial advice."
-}"""
+  "disclaimer": "This is educational guidance only, not financial advice.",
+  "real_world_note": null
+}
+real_world_note: if this purchase has a notable ethical or sustainability angle (e.g. fast fashion,
+known poor labour practices, secondhand available, high carbon footprint) add ONE plain-English
+peer-tone sentence. Otherwise null. Never preachy."""
 
 _INVESTMENT_SYSTEM = """You are Buddy, a UK student finance guide.
 Evaluate whether an investment's expected return is realistic for the UK market and suitable for a student.
@@ -54,8 +58,12 @@ Respond ONLY with valid JSON matching exactly this structure:
   "suitability": "<is this suitable for a student with limited capital?>",
   "tip": "<one actionable recommendation>",
   "confidence": <integer 0-100>,
-  "disclaimer": "Educational guidance only. Past returns do not guarantee future results."
-}"""
+  "disclaimer": "Educational guidance only. Past returns do not guarantee future results.",
+  "real_world_note": null
+}
+real_world_note: if an ESG/ethical fund alternative exists for this investment type, or if
+there's a notable ethical concern (e.g. crypto energy use, fossil fuel exposure), add ONE
+plain-English peer-tone sentence. Otherwise null."""
 
 TOOL_CONFIGS: dict[str, dict] = {
     "grocery": {

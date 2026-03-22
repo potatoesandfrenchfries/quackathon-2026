@@ -3,7 +3,15 @@
  * Always attaches the Supabase access token as Bearer header.
  */
 import { createClient } from "@/lib/supabase/client";
-import type { AIResponse, AnswerEnriched, CredibilitySnapshot, Post } from "@/types/database";
+import type {
+  AIResponse,
+  AnswerEnriched,
+  Challenge,
+  ChallengeParticipant,
+  CredibilitySnapshot,
+  Goal,
+  Post,
+} from "@/types/database";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -119,5 +127,60 @@ export const api = {
         (p: { ai_responses?: { response_json: AIResponse } | null }) =>
           p.ai_responses?.response_json ?? null
       ),
+  },
+
+  // ----------------------------------------------------------------
+  // Challenges
+  // ----------------------------------------------------------------
+  challenges: {
+    list: () => apiFetch<Challenge[]>("/challenges/"),
+    recommended: () => apiFetch<Challenge[]>("/challenges/recommended"),
+    mine: () => apiFetch<Challenge[]>("/challenges/mine"),
+    get: (id: string) => apiFetch<Challenge>(`/challenges/${id}`),
+    participants: (id: string) =>
+      apiFetch<ChallengeParticipant[]>(`/challenges/${id}/participants`),
+    create: (payload: {
+      title: string;
+      description: string;
+      topic?: string;
+      target_description: string;
+      duration_days?: number;
+    }) => apiFetch<Challenge>("/challenges/", { method: "POST", body: JSON.stringify(payload) }),
+    join: (id: string) =>
+      apiFetch<{ join_number: number; challenge_id: string; status: string }>(
+        `/challenges/${id}/join`,
+        { method: "POST" }
+      ),
+    checkin: (id: string, status: "on_track" | "slipped") =>
+      apiFetch(`/challenges/${id}/checkin`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
+    complete: (id: string) =>
+      apiFetch(`/challenges/${id}/complete`, { method: "PATCH" }),
+    leave: (id: string) =>
+      apiFetch(`/challenges/${id}/leave`, { method: "DELETE" }),
+  },
+
+  // ----------------------------------------------------------------
+  // Goals
+  // ----------------------------------------------------------------
+  goals: {
+    list: () => apiFetch<Goal[]>("/goals/"),
+    shared: () => apiFetch<Goal[]>("/goals/shared"),
+    create: (payload: {
+      title: string;
+      emoji?: string;
+      color?: string;
+      target_amount: number;
+      deadline: string;
+      is_shared?: boolean;
+    }) => apiFetch<Goal>("/goals/", { method: "POST", body: JSON.stringify(payload) }),
+    addProgress: (id: string, amount: number) =>
+      apiFetch<{ current_amount: number; target_amount: number; completed: boolean; message: string | null }>(
+        `/goals/${id}/progress`,
+        { method: "PATCH", body: JSON.stringify({ amount }) }
+      ),
+    delete: (id: string) => apiFetch(`/goals/${id}`, { method: "DELETE" }),
   },
 };

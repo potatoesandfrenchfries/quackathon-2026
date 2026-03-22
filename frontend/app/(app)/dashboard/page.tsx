@@ -1,7 +1,8 @@
 "use client";
+import { useState, useEffect } from "react";
 import {
   TrendingUp, Flame, Zap, Star,
-  ArrowUpRight, ArrowDownRight,
+  ArrowUpRight, ArrowDownRight, Trophy, CheckCircle2, Users,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -13,6 +14,8 @@ import { useUserStore } from "@/store/useUserStore";
 import { useTransactionStore } from "@/store/useTransactionStore";
 import { useGoalStore } from "@/store/useGoalStore";
 import { categoryConfig, formatCurrency, formatDate } from "@/data/mock";
+import { api } from "@/lib/api";
+import type { Challenge } from "@/types/database";
 
 const PIE_COLORS = ["#60A5FA","#34D399","#A78BFA","#FB923C","#F87171","#F472B6","#6B7280"];
 
@@ -35,6 +38,13 @@ export default function DashboardPage() {
   const { user } = useUserStore();
   const { transactions } = useTransactionStore();
   const { goals } = useGoalStore();
+  const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
+
+  useEffect(() => {
+    api.challenges.mine().then((data) => {
+      setActiveChallenges(data.filter((c) => c.my_participation?.status === "active").slice(0, 2));
+    }).catch(() => {});
+  }, []);
 
   const income  = transactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const expense = transactions.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
@@ -185,6 +195,70 @@ export default function DashboardPage() {
           ))}
         </div>
       </Card>
+
+      {/* Active Challenges */}
+      {activeChallenges.length > 0 && (
+        <Card>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <Trophy size={16} className="text-amber-400" />
+              <h2 className="text-base font-semibold text-gray-100">Active Challenges</h2>
+            </div>
+            <a href="/challenges" className="text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1">
+              View all <ArrowUpRight size={14} />
+            </a>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {activeChallenges.map((c) => {
+              const p = c.my_participation;
+              const needsCheckin =
+                p && p.last_checkin_at
+                  ? Date.now() - new Date(p.last_checkin_at).getTime() > 7 * 86400000
+                  : !!p;
+              return (
+                <div key={c.id} className="p-4 bg-gray-800 rounded-xl space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-100">{c.title}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{c.target_description}</p>
+                    </div>
+                    {p && (
+                      <span className="shrink-0 text-[10px] font-mono text-amber-400">#{p.join_number}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <Users size={11} />
+                        {c.participant_count}
+                      </span>
+                      {p && p.checkin_streak > 0 && (
+                        <span className="flex items-center gap-1 text-orange-400">
+                          <Flame size={11} />
+                          {p.checkin_streak}w streak
+                        </span>
+                      )}
+                    </div>
+                    {needsCheckin ? (
+                      <a
+                        href="/challenges"
+                        className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300"
+                      >
+                        Check in →
+                      </a>
+                    ) : (
+                      <span className="flex items-center gap-1 text-[11px] text-gray-600">
+                        <CheckCircle2 size={11} />
+                        Up to date
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Recent transactions */}
       <Card>
