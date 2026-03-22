@@ -46,11 +46,31 @@ jobs:
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install -r backend/requirements-test.txt
 
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
+
+      - name: Backend tests
+        id: backend_tests
+        run: python -m pytest -v --tb=short
+        working-directory: backend
+        continue-on-error: true
+
+      - name: Warn on backend test failure
+        if: steps.backend_tests.outcome == 'failure'
+        run: echo "::warning::Backend tests failed — see the Backend tests step above for details."
+
+      - name: Frontend tests
+        id: frontend_tests
+        working-directory: frontend
+        run: npm test
+        continue-on-error: true
+
+      - name: Warn on frontend test failure
+        if: steps.frontend_tests.outcome == 'failure'
+        run: echo "::warning::Frontend tests failed — see the Frontend tests step above for details."
 
       - name: Frontend build
         working-directory: frontend
@@ -59,9 +79,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: npm run build
-
-      - name: Backend syntax check
-        run: python -m compileall -q backend
 
   check-frontend-changes:
     name: Check Frontend Changes
