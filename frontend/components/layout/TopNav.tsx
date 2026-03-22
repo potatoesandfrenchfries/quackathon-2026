@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, PenLine, Trophy, Users, Search, Bell, Flame, Wallet } from "lucide-react";
+import { LayoutGrid, PenLine, Trophy, Users, Search, Bell, Flame, Wallet, BookOpen } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Dashboard",  href: "/dashboard",  icon: LayoutGrid },
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: "Community",  href: "/feed",        icon: Users      },
   { label: "Ask",        href: "/ask",         icon: PenLine    },
   { label: "Challenges", href: "/challenges",  icon: Flame      },
+  { label: "Assignments", href: "/assignments", icon: BookOpen   },
   { label: "Leaderboard",href: "/leaderboard", icon: Trophy     },
 ];
 

@@ -147,6 +147,22 @@ export interface Goal {
   updated_at: string;
 }
 
+export type AssignmentDifficulty = "easy" | "medium" | "hard";
+export type AssignmentStatus = "todo" | "in_progress" | "completed";
+
+export interface Assignment {
+  id: string;
+  user_id: string;
+  title: string;
+  subject: string;
+  due_date: string; // "YYYY-MM-DD"
+  difficulty: AssignmentDifficulty;
+  status: AssignmentStatus;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CredibilitySnapshot {
   user_id: string;
   total_score: number;

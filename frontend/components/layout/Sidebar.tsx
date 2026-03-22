@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, ArrowLeftRight, PieChart, Target,
-  User, Users, X, Flame, Zap, Trophy,
+  User, Users, X, Flame, Zap, Trophy, BookOpen,
 } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import { TierBadge } from "@/components/ui/Badge";
@@ -16,6 +16,7 @@ const navItems = [
   { href: "/budget",       label: "Budget",       icon: PieChart        },
   { href: "/goals",        label: "Goals",        icon: Target          },
   { href: "/challenges",   label: "Challenges",   icon: Trophy          },
+  { href: "/assignments",  label: "Assignments",  icon: BookOpen        },
 ];
 
 interface SidebarProps {

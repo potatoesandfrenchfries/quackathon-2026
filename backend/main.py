@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from core.database import get_db
-from routers import auth, posts, answers, votes, credibility, tools, rag, challenges, goals
+from routers import auth, posts, answers, votes, credibility, tools, rag, challenges, goals, assignments
 
 
 @asynccontextmanager
@@ -61,6 +61,7 @@ app.include_router(tools.router)
 app.include_router(rag.router)
 app.include_router(challenges.router)
 app.include_router(goals.router)
+app.include_router(assignments.router)
 
 
 @app.get("/health")

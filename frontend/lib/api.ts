@@ -5,6 +5,8 @@
 import { createClient } from "@/lib/supabase/client";
 import type {
   AIResponse,
+  Assignment,
+  AssignmentDifficulty,
   AnswerEnriched,
   Challenge,
   ChallengeParticipant,
@@ -182,5 +184,29 @@ export const api = {
         { method: "PATCH", body: JSON.stringify({ amount }) }
       ),
     delete: (id: string) => apiFetch(`/goals/${id}`, { method: "DELETE" }),
+  },
+
+  // ----------------------------------------------------------------
+  // Assignments
+  // ----------------------------------------------------------------
+  assignments: {
+    list: () => apiFetch<Assignment[]>("/assignments/"),
+    create: (payload: {
+      title: string;
+      subject: string;
+      due_date: string;
+      difficulty?: AssignmentDifficulty;
+    }) => apiFetch<Assignment>("/assignments/", { method: "POST", body: JSON.stringify(payload) }),
+    updateStatus: (id: string, status: "todo" | "in_progress") =>
+      apiFetch<Assignment>(`/assignments/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
+    complete: (id: string) =>
+      apiFetch<{ completed: boolean; credibility_awarded: number; message: string }>(
+        `/assignments/${id}/complete`,
+        { method: "PATCH" }
+      ),
+    delete: (id: string) => apiFetch(`/assignments/${id}`, { method: "DELETE" }),
   },
 };
