@@ -147,7 +147,7 @@ export const api = {
       duration_days?: number;
     }) => apiFetch<Challenge>("/challenges/", { method: "POST", body: JSON.stringify(payload) }),
     join: (id: string) =>
-      apiFetch<{ join_number: number; challenge_id: string; status: string }>(
+      apiFetch<{ id: string; join_number: number; challenge_id: string; status: string }>(
         `/challenges/${id}/join`,
         { method: "POST" }
       ),
