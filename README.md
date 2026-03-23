@@ -1,3 +1,4 @@
+## THIRD PLACE IN QUACKATHON '26
 # Buddy — Financial Well-being for Students
 
 > "We didn't change money. We changed trust."
